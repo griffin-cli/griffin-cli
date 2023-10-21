@@ -16,6 +16,10 @@ export default abstract class BaseCommand<T extends typeof Command & {
     debug: Flags.string({
       hidden: true,
     }),
+    env: Flags.string({
+      description: 'the name of the environment (e.g. prod, qa, staging), this can be any arbitrary string; default: prod',
+      default: 'prod',
+    }),
   };
 
   static configFile?: ConfigFile;
@@ -37,7 +41,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
 
     this.configFile = (this.constructor as T).configFile
       || BaseCommand.configFile
-      || await ConfigFile.loadConfig();
+      || await ConfigFile.loadConfig(this.flags.env);
   }
 
   async catch(err: CommandError): Promise<void> {

@@ -47,7 +47,7 @@ export default class SSMRead extends SSMBaseCommand<typeof SSMRead> {
         if (this.flags.latest) {
           version = await this.ssmStore.getCurrentVersion(this.flags.name);
         } else {
-          if (!await ConfigFile.doesExist()) {
+          if (!await ConfigFile.doesExist(this.flags.env)) {
             throw new ConfigFileDoesNotExistError();
           }
 

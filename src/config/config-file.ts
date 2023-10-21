@@ -15,15 +15,14 @@ type FileSystemError = Error & {
 type Config = Partial<Record<Source, SourceConfig>>;
 
 export default class ConfigFile {
-  private static readonly filename = '.griffin-config.json';
-
   private constructor(
+    private env: string,
     private config: Config = {},
   ) { }
 
-  static async doesExist(): Promise<boolean> {
+  static async doesExist(env: string): Promise<boolean> {
     try {
-      await stat(this.filename);
+      await stat(this.getFileName(env));
 
       return true;
     } catch (error) {
@@ -35,13 +34,13 @@ export default class ConfigFile {
     }
   }
 
-  static async loadConfig(): Promise<ConfigFile> {
-    return new ConfigFile(await this.loadConfigFromFile());
+  static async loadConfig(env: string): Promise<ConfigFile> {
+    return new ConfigFile(env, await this.loadConfigFromFile(env));
   }
 
-  private static async loadConfigFromFile(): Promise<Config> {
+  private static async loadConfigFromFile(env: string): Promise<Config> {
     try {
-      const data = await readFile(this.filename);
+      const data = await readFile(this.getFileName(env));
 
       return JSON.parse(data.toString());
     } catch (error) {
@@ -51,6 +50,10 @@ export default class ConfigFile {
 
       throw error;
     }
+  }
+
+  private static getFileName(env: string): string {
+    return `.griffin-config.${env}.json`;
   }
 
   getParamConfig(source: Source, id: string): ParamConfig | undefined {
@@ -74,9 +77,9 @@ export default class ConfigFile {
   }
 
   async save(): Promise<void> {
-    await writeFile(ConfigFile.filename, JSON.stringify(this.config, undefined, 2));
+    await writeFile(ConfigFile.getFileName(this.env), JSON.stringify(this.config, undefined, 2));
 
-    this.config = await ConfigFile.loadConfigFromFile();
+    this.config = await ConfigFile.loadConfigFromFile(this.env);
   }
 
   toParamDefinitions(): Partial<Record<Source, ParamDefinition[]>> {

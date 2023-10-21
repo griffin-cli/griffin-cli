@@ -7,20 +7,21 @@ import { readFile } from 'fs/promises';
 
 describe('ConfigFile', () => {
   const configFileTest = test
+    .add('env', 'test')
     .finally(() => mock.restore());
 
   describe('Static Methods', () => {
     describe('doesExist', () => {
       configFileTest
         .do(() => mock({}))
-        .do(() => expect(ConfigFile.doesExist()).to.eventually.equal(false))
+        .do((ctx) => expect(ConfigFile.doesExist(ctx.env)).to.eventually.equal(false))
         .it('should return false if the file does not exist');
 
       configFileTest
-        .do(() => mock({
-          '.griffin-config.json': '',
+        .do((ctx) => mock({
+          [`.griffin-config.${ctx.env}.json`]: '',
         }))
-        .do(() => expect(ConfigFile.doesExist()).to.eventually.equal(true));
+        .do((ctx) => expect(ConfigFile.doesExist(ctx.env)).to.eventually.equal(true));
     });
 
     describe('loadConfig', () => {
@@ -28,14 +29,14 @@ describe('ConfigFile', () => {
         .add('source', Source.SSM)
         .add('id', 'id')
         .do((ctx) => mock({
-          '.griffin-config.json': JSON.stringify({
+          [`.griffin-config.${ctx.env}.json`]: JSON.stringify({
             [ctx.source]: {
               [ctx.id]: {},
             },
           }),
         }))
         .do(async (ctx) => {
-          const config = await ConfigFile.loadConfig();
+          const config = await ConfigFile.loadConfig(ctx.env);
 
           expect(config).to.be.instanceOf(ConfigFile);
           expect(config.hasParamConfig(ctx.source, ctx.id)).to.equal(true);
@@ -44,7 +45,7 @@ describe('ConfigFile', () => {
 
       configFileTest
         .do(() => mock())
-        .do(() => expect(ConfigFile.loadConfig()).to.not.be.rejected)
+        .do((ctx) => expect(ConfigFile.loadConfig(ctx.env)).to.not.be.rejected)
         .it('should not throw an error if the config file does not exist');
     });
   });
@@ -62,9 +63,9 @@ describe('ConfigFile', () => {
         },
       }))
       .do((ctx) => mock({
-        '.griffin-config.json': JSON.stringify(ctx.configFileData),
+        [`.griffin-config.${ctx.env}.json`]: JSON.stringify(ctx.configFileData),
       }))
-      .add('config', () => ConfigFile.loadConfig());
+      .add('config', (ctx) => ConfigFile.loadConfig(ctx.env));
 
     describe('getParamConfig', () => {
       configInstanceTest
@@ -126,7 +127,7 @@ describe('ConfigFile', () => {
     describe('save', () => {
       configInstanceTest
         .do((ctx) => ctx.config.save())
-        .do(async (ctx) => expect((await readFile('.griffin-config.json')).toString()).to.equal(JSON.stringify(ctx.configFileData, undefined, 2)))
+        .do(async (ctx) => expect((await readFile(`.griffin-config.${ctx.env}.json`)).toString()).to.equal(JSON.stringify(ctx.configFileData, undefined, 2)))
         .it('should save to a file');
     });
   });
