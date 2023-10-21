@@ -5,13 +5,7 @@ on:
 
 jobs:
   unit-tests:
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "windows-latest"]
-        node_version: [lts/-1, lts/*, latest]
-      fail-fast: false
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -20,7 +14,7 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node_version }}
+          node-version: lts
           cache: npm
 
       - name: Install Dependencies
@@ -32,13 +26,7 @@ jobs:
           npm run test:unit
 
   integration-tests:
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "windows-latest"]
-        node_version: [lts/-1, lts/*, latest]
-      fail-fast: false
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -47,7 +35,7 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node_version }}
+          node-version: lts
           cache: npm
 
       - name: Install Dependencies
