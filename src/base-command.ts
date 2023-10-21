@@ -2,12 +2,15 @@ import { Command, Flags } from '@oclif/core';
 import { CommandError } from '@oclif/core/lib/interfaces';
 
 import { ConfigFile } from './config';
+import InvalidFlagError from './errors/invalid-flag-error';
 import ExtendArgs from './types/extend-args';
 import ExtendFlags from './types/extend-flags';
 
 export default abstract class BaseCommand<T extends typeof Command & {
   configFile?: ConfigFile;
 }> extends Command {
+  protected static envPattern = /^[A-Za-z_-]+$/;
+
   protected flags!: ExtendFlags<typeof BaseCommand, T>;
 
   protected args!: ExtendArgs<T>;
@@ -17,7 +20,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
       hidden: true,
     }),
     env: Flags.string({
-      description: 'the name of the environment (e.g. prod, qa, staging), this can be any arbitrary string; default: prod',
+      description: 'the name of the environment (e.g. prod, qa, staging), this can be any alphanumeric string; default: prod',
       default: 'prod',
     }),
   };
@@ -38,6 +41,10 @@ export default abstract class BaseCommand<T extends typeof Command & {
 
     this.flags = flags as ExtendFlags<typeof BaseCommand, T>;
     this.args = args as ExtendArgs<T>;
+
+    if (!BaseCommand.envPattern.test(this.flags.env)) {
+      throw new InvalidFlagError('--env', 'Environment must only contain alphanumeric characters and "_" or "-".');
+    }
 
     this.configFile = (this.constructor as T).configFile
       || BaseCommand.configFile
