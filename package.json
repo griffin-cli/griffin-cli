@@ -1,0 +1,97 @@
+{
+  "name": "griffin-cli",
+  "version": "0.0.0",
+  "description": "Tool for pulling secrets and other config with version control.",
+  "author": "Calvin Moore @c1moore",
+  "bin": {
+    "griffin": "./bin/run"
+  },
+  "homepage": "https://github.com/griffin-cli/griffin-cli",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "repository": "griffin-cli/griffin-cli",
+  "files": [
+    "/bin",
+    "/dist",
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-ssm": "^3.405.0",
+    "@oclif/core": "^2",
+    "@oclif/errors": "^1.3.6",
+    "@oclif/plugin-autocomplete": "^2.3.7",
+    "@oclif/plugin-help": "^5.2.19",
+    "@oclif/plugin-update": "^3.2.0",
+    "@oclif/plugin-warn-if-update-available": "^2.0.50",
+    "csv-stringify": "^6.4.4",
+    "dotenv": "^16.3.1",
+    "envfile": "^6.18.0",
+    "yaml": "^2.3.3"
+  },
+  "devDependencies": {
+    "@aws-sdk/types": "^3.398.0",
+    "@oclif/test": "^2.5.3",
+    "@types/chai": "^4",
+    "@types/chai-as-promised": "^7.1.6",
+    "@types/mocha": "^10.0.1",
+    "@types/mock-fs": "^4.13.1",
+    "@types/node": "^20.5.9",
+    "@typescript-eslint/eslint-plugin": "^6.6.0",
+    "@typescript-eslint/parser": "^6.6.0",
+    "aws-sdk-client-mock": "^3.0.0",
+    "chai": "^4",
+    "chai-as-promised": "^7.1.1",
+    "eslint": "^8.48.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb-typescript": "^17.1.0",
+    "eslint-plugin-import": "^2.28.1",
+    "eslint-plugin-unused-imports": "^3.0.0",
+    "mocha": "^10",
+    "mock-fs": "^5.2.0",
+    "mock-stdin": "^1.0.0",
+    "nyc": "^15.1.0",
+    "oclif": "^3.14.0",
+    "shx": "^0.3.4",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.2.2"
+  },
+  "oclif": {
+    "bin": "griffin",
+    "dirname": "griffin",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-autocomplete",
+      "@oclif/plugin-warn-if-update-available",
+      "@oclif/plugin-update"
+    ],
+    "topicSeparator": " ",
+    "topics": {}
+  },
+  "scripts": {
+    "build": "shx rm -rf dist && tsc",
+    "lint": "eslint . --ext .ts --config .eslintrc",
+    "lint:fix": "eslint . --ext .ts --config .eslintrc --fix",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "npm run lint",
+    "prepack": "npm run build && oclif manifest && oclif readme",
+    "test": "GRIFFIN_AWS_SSM_ENDPOINT=localhost:4566 nyc mocha \"test/**/*.test.ts\"",
+    "test:unit": "GRIFFIN_AWS_SSM_ENDPOINT=localhost:4566 mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
+    "test:integration": "GRIFFIN_AWS_SSM_ENDPOINT=localhost:4566 mocha \"test/integration/*.test.ts\"",
+    "version": "oclif readme && git add README.md",
+    "start:env": "docker compose up"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "bugs": "https://github.com/griffin-cli/griffin-cli/issues",
+  "keywords": [
+    "oclif",
+    "secrets",
+    "config",
+    "ssm"
+  ],
+  "types": "dist/index.d.ts"
+}

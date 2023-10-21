@@ -1,0 +1,37 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "airbnb-base",
+    "airbnb-typescript/base"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "import", "unused-imports"],
+  "root": true,
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "no-restricted-syntax": ["off"],
+    "no-await-in-loop": ["off"],
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          [
+            "parent",
+            "sibling",
+            "index"
+          ]
+        ],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc"
+        }
+      }
+    ],
+    "unused-imports/no-unused-imports": "error"
+  }
+}
