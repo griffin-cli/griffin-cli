@@ -24,11 +24,11 @@ jobs:
           cache: npm
 
       - name: Install Dependencies
-        run:
+        run: |
           npm ci
 
       - name: Run Unit Tests
-        run:
+        run: |
           npm run test:unit
 
   integration-tests:
@@ -51,9 +51,13 @@ jobs:
           cache: npm
 
       - name: Install Dependencies
-        run:
+        run: |
           npm ci
 
+      - name: Set Up Env
+        run: |
+          npm run up
+
       - name: Run Integration Tests
-        run:
+        run: |
           npm run test:integration

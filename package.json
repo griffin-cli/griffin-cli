@@ -68,7 +68,17 @@
       "@oclif/plugin-update"
     ],
     "topicSeparator": " ",
-    "topics": {}
+    "topics": {
+      "ssm": {
+        "description": "Manage SSM-based config."
+      },
+      "exec": {
+        "description": "Execute a command, injecting config as environment variables."
+      },
+      "export": {
+        "description": "Export config in the format specified."
+      }
+    }
   },
   "scripts": {
     "build": "shx rm -rf dist && tsc",
@@ -81,7 +91,8 @@
     "test:unit": "GRIFFIN_AWS_SSM_ENDPOINT=localhost:4566 mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
     "test:integration": "GRIFFIN_AWS_SSM_ENDPOINT=localhost:4566 mocha \"test/integration/*.test.ts\"",
     "version": "oclif readme && git add README.md",
-    "start:env": "docker compose up"
+    "up": "docker compose up",
+    "down": "docker compose down"
   },
   "engines": {
     "node": ">=20.0.0"

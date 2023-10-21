@@ -1,18 +1,22 @@
-# name: Release
+name: Release
 
-# on:
-#   release:
-#     types: [published]
+on:
+  release:
+    types: [published]
 
-#   # support manual release in case something goes wrong and needs to be repeated or tested
-#   workflow_dispatch:
-#     inputs:
-#       tag:
-#         description: tag that needs to be published
-#         type: string
-#         required: true
+  # support manual release in case something goes wrong and needs to be repeated or tested
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: tag that needs to be published
+        type: string
+        required: true
 
-# concurrency:
-#   group: release
+concurrency:
+  group: release
 
-# jobs:
+jobs:
+  todo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo todo

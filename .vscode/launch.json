@@ -17,18 +17,18 @@
       "type": "node",
       "runtimeExecutable": "/home/cmoore/.nvm/versions/node/v18.17.0/bin/node"
     },
-      {
-          "type": "node",
-          "request": "launch",
-          "name": "Execute Command",
-          "skipFiles": [
-              "<node_internals>/**"
-          ],
-          "program": "${workspaceFolder}/bin/dev",
-          "args": [
-            "hello",
-            "world",
-          ],
-      }
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Execute Command",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/dev",
+      "args": [
+        "hello",
+        "world",
+      ],
+    }
   ]
 }

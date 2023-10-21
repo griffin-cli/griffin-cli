@@ -9,7 +9,7 @@ jobs:
     uses: ./.github/workflows/_helper-test.yml
 
   lint:
-    uses: ./.github/workflow/_helper-lint.yml
+    uses: ./.github/workflows/_helper-lint.yml
 
   build:
-    uses: ./.github/workflow/_helper-build.yml
+    uses: ./.github/workflows/_helper-build.yml
