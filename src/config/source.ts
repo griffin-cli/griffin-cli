@@ -2,8 +2,9 @@ import { UnknownStoreError } from '../errors';
 
 enum Source {
   SSM = 'SSM',
-  S3 = 'S3',
-  SecretsManager = 'SecretsManager',
+  // TODO: Add support for other sources.
+  // S3 = 'S3',
+  // SecretsManager = 'SecretsManager',
 }
 
 export const isSource = (str: string): str is Source => Object.keys(Source).includes(str);

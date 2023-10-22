@@ -77,7 +77,7 @@ describe('ConfigFile', () => {
         .it('should return undefined if the ID does not exist');
 
       configInstanceTest
-        .do((ctx) => expect(ctx.config.getParamConfig(Source.S3, ctx.id)).to.be.undefined)
+        .do((ctx) => expect(ctx.config.getParamConfig('TestStore' as unknown as Source, ctx.id)).to.be.undefined)
         .it('should return undefined if the source does not exist');
     });
 
@@ -113,7 +113,7 @@ describe('ConfigFile', () => {
         .it('should add a new ID to an existing source');
 
       configInstanceTest
-        .add('newSource', Source.S3)
+        .add('newSource', 'TestStore' as unknown as Source)
         .add('newId', randomUUID())
         .add('newParamConfig', {
           envVarName: 'NEW_NAME',

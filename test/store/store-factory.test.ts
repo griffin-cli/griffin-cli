@@ -14,7 +14,7 @@ describe('StoreFactory', () => {
     }
   }
 
-  class MockS3Store implements Store {
+  class TestStore implements Store {
     async getEnvVars(params: ParamDefinition[]): Promise<EnvVar[]> {
       return [];
     }
@@ -29,7 +29,7 @@ describe('StoreFactory', () => {
   storeFactoryTest
     .do(() => {
       StoreFactory.addStore(Source.SSM, new MockSSMStore());
-      StoreFactory.addStore(Source.S3, new MockS3Store());
+      StoreFactory.addStore('TestStore' as unknown as Source, new TestStore());
 
       expect(StoreFactory.getStore(Source.SSM)).to.be.instanceOf(MockSSMStore);
     })
