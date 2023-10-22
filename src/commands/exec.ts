@@ -19,7 +19,6 @@ const signals = [
   'SIGINT',
   'SIGIO',
   'SIGIOT',
-  'SIGKILL',
   'SIGLOST',
   'SIGPIPE',
   'SIGPOLL',
@@ -28,7 +27,6 @@ const signals = [
   'SIGQUIT',
   'SIGSEGV',
   'SIGSTKFLT',
-  'SIGSTOP',
   'SIGSYS',
   'SIGTERM',
   'SIGTRAP',
@@ -60,15 +58,19 @@ export default class Exec extends BaseCommand<typeof Exec> {
       char: 'p',
       description: 'only use config managed by griffin; do not inherit existing environment variables',
     }),
+    // This is only used for internal testing.
+    'skip-exit': Flags.boolean({
+      hidden: true,
+    }),
   };
 
   static args = {
-    separator: Args.string({
-      name: 'separator',
-      hidden: true,
-      required: true,
-      options: ['--'],
-    }),
+    // separator: Args.string({
+    //   name: 'separator',
+    //   hidden: true,
+    //   required: true,
+    //   options: ['--'],
+    // }),
     command: Args.string({
       name: 'COMMAND',
       description: 'the command to execute',
@@ -81,7 +83,8 @@ export default class Exec extends BaseCommand<typeof Exec> {
   };
 
   public async run(): Promise<void> {
-    const subArgs = this.argv.slice(2);
+    const separatorIndex = this.argv.findIndex((v) => v === '--');
+    const subArgs = this.argv.slice(separatorIndex + 2);
     let env: Record<string, string | undefined> = {};
 
     if (!this.flags.pristine) {
@@ -104,6 +107,8 @@ export default class Exec extends BaseCommand<typeof Exec> {
 
     signals.forEach((sig) => process.on(sig, (signal) => cmd.kill(signal)));
 
-    cmd.on('close', (code) => process.exit(code || 0));
+    if (!this.flags['skip-exit']) {
+      cmd.on('close', (code) => process.exit(code || 0));
+    }
   }
 }
