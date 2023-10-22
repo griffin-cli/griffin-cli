@@ -38,8 +38,10 @@ export default class Export extends BaseCommand<typeof Export> {
     }),
   };
 
+  static getEnvVars = getEnvVars;
+
   public async run(): Promise<void> {
-    const envVars = await getEnvVars(this.configFile.toParamDefinitions());
+    const envVars = await Export.getEnvVars(this.configFile.toParamDefinitions());
 
     switch (this.flags.format as ExportOutputFormat) {
       case ExportOutputFormat.JSON: {
@@ -68,7 +70,7 @@ export default class Export extends BaseCommand<typeof Export> {
 
   private async print(data: string): Promise<void> {
     if (!this.flags.output) {
-      this.log(data);
+      this.log(data.trim());
       return;
     }
 

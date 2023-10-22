@@ -13,7 +13,6 @@
   "files": [
     "/bin",
     "/dist",
-    "/npm-shrinkwrap.json",
     "/oclif.manifest.json"
   ],
   "dependencies": {
@@ -81,7 +80,8 @@
     }
   },
   "scripts": {
-    "build": "shx rm -rf dist && tsc",
+    "clean": "shx rm -rf dist",
+    "build": "npm run clean && tsc",
     "lint": "eslint . --ext .ts --config .eslintrc",
     "lint:fix": "eslint . --ext .ts --config .eslintrc --fix",
     "postpack": "shx rm -f oclif.manifest.json",
@@ -95,7 +95,7 @@
     "down": "docker compose down --volumes"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=18.18.0"
   },
   "bugs": "https://github.com/griffin-cli/griffin-cli/issues",
   "keywords": [

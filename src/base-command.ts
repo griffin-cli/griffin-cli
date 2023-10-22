@@ -20,8 +20,8 @@ export default abstract class BaseCommand<T extends typeof Command & {
       hidden: true,
     }),
     env: Flags.string({
-      description: 'the name of the environment (e.g. prod, qa, staging), this can be any alphanumeric string; default: prod',
-      default: 'prod',
+      description: 'the name of the environment (e.g. prod, qa, staging), this can be any alphanumeric string; default: default',
+      default: 'default',
     }),
   };
 
