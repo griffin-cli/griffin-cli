@@ -1,10 +1,8 @@
 import { CLIError } from '@oclif/errors';
 
-import { Source } from '../config';
-
 export default class UnknownStoreError extends CLIError {
   constructor(
-    source: Source,
+    source: string,
   ) {
     super(`Store not found for source: ${source}`);
 
