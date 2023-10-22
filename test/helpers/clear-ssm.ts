@@ -13,6 +13,7 @@ export default async () => {
 
   do {
     const describeCmd = new DescribeParametersCommand({
+      MaxResults: 50,
       NextToken: nextToken,
     });
 
