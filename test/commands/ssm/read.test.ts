@@ -12,13 +12,15 @@ describe('ssm:read', () => {
   const readTest = test
     .add('untrackedId', () => randomUUID())
     .add('ssmStore', () => new SSMStore() as SinonStubbedInstance<SSMStore>)
-    .do((ctx) => SSMRead.ssmStore = ctx.ssmStore);
+    .do((ctx) => SSMRead.ssmStore = ctx.ssmStore)
+    .finally(() => SSMRead.ssmStore = undefined);
 
   const readTestWithConfigFile = readTest
     .add('idWithVersion', () => randomUUID())
     .add('version', '777')
     .add('idWithoutVersion', () => randomUUID())
-    .do((ctx) => SSMRead.configFile = ctx.configFile);
+    .do((ctx) => SSMRead.configFile = ctx.configFile)
+    .finally(() => SSMRead.configFile = undefined);
 
 
   readTestWithConfigFile
