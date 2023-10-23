@@ -93,20 +93,9 @@ USAGE
 <!-- usagestop -->
 # Commands
 <!-- commands -->
-- [griffin-cli](#griffin-cli)
-- [Installation](#installation)
-  - [Mac](#mac)
-  - [Linux](#linux)
-  - [Windows](#windows)
-- [AWS Configuration](#aws-configuration)
-- [Migrating to griffin](#migrating-to-griffin)
-  - [Chamber](#chamber)
-  - [Dotenv](#dotenv)
-- [Usage](#usage)
-- [Commands](#commands)
-  - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-  - [`griffin help [COMMANDS]`](#griffin-help-commands)
-  - [`griffin update [CHANNEL]`](#griffin-update-channel)
+* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+* [`griffin help [COMMANDS]`](#griffin-help-commands)
+* [`griffin update [CHANNEL]`](#griffin-update-channel)
 
 ## `griffin autocomplete [SHELL]`
 

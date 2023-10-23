@@ -65,12 +65,6 @@ export default class Exec extends BaseCommand<typeof Exec> {
   };
 
   static args = {
-    // separator: Args.string({
-    //   name: 'separator',
-    //   hidden: true,
-    //   required: true,
-    //   options: ['--'],
-    // }),
     command: Args.string({
       name: 'COMMAND',
       description: 'the command to execute',
@@ -85,6 +79,7 @@ export default class Exec extends BaseCommand<typeof Exec> {
   public async run(): Promise<void> {
     const separatorIndex = this.argv.findIndex((v) => v === '--');
     const subArgs = this.argv.slice(separatorIndex + 2);
+
     let env: Record<string, string | undefined> = {};
 
     if (!this.flags.pristine) {
@@ -100,7 +95,6 @@ export default class Exec extends BaseCommand<typeof Exec> {
     };
 
     const cmd = spawn(this.args.command, subArgs, {
-      detached: true,
       stdio: 'inherit',
       env,
     });

@@ -13,7 +13,9 @@
   "files": [
     "/bin",
     "/dist",
-    "/oclif.manifest.json"
+    "/oclif.manifest.json",
+    "/LICENSE",
+    "/README.md"
   ],
   "dependencies": {
     "@aws-sdk/client-ssm": "^3.405.0",
