@@ -1,10 +1,13 @@
-name: ZZ-Build
+name: ZZ-NPM Publish
 
 on:
   workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,5 +25,10 @@ jobs:
           npm ci
 
       - name: Build
+        uses: ./.github/workflows/_helper-build.yml
+
+      - name: Publish
         run: |
-          npm run build
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

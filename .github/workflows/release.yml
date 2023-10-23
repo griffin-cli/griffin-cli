@@ -16,7 +16,14 @@ concurrency:
   group: release
 
 jobs:
-  todo:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo todo
+  npm-publish:
+    uses: ./.github/workflows/_helper-npm-publish.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release-artifacts:
+    uses: ./.github/workflows/_helper-release-artifacts.yml
+    with:
+      version: ${{ inputs.tag || github.event.release.tag_name }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
