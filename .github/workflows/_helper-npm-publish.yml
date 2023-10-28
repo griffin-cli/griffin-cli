@@ -1,0 +1,34 @@
+name: ZZ-NPM Publish
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: latest
+          cache: npm
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+
+      - name: Build
+        uses: ./.github/workflows/_helper-build.yml
+
+      - name: Publish
+        run: |
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

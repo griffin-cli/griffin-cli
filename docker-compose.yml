@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  aws:
+    container_name: griffin-localstack
+    image: localstack/localstack:latest
+    ports:
+      - 4566:4566
+    pull_policy: always

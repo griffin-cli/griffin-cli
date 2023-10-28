@@ -1,0 +1,30 @@
+name: ZZ-Release Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      # Optional
+      pack-types:
+        type: string
+        default: '["deb", "tarballs", "win"]'
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/_helper-build-artifacts.yml
+    with:
+      version: ${{ inputs.version }}
+      pack-types: ${{ inputs.pack-types }}
+
+  publish:
+    uses: ./.github/workflows/_helper-publish-artifacts.yml
+    with:
+      version: ${{ inputs.version }}
+      pack-types: ${{ inputs.pack-types }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
