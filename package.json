@@ -31,7 +31,7 @@
     "yaml": "^2.3.3"
   },
   "devDependencies": {
-    "@aws-sdk/types": "^3.398.0",
+    "@aws-sdk/types": "^3.433.0",
     "@oclif/test": "^2.5.3",
     "@types/chai": "^4",
     "@types/chai-as-promised": "^7.1.6",
