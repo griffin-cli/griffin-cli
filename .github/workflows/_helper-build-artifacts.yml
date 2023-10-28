@@ -39,14 +39,14 @@ jobs:
       - name: Install 7-Zip
         if: matrix.pack-type == 'tarballs'
         run: |
-          apt update
-          apt install p7zip-full p7zip-rar
+          sudo apt update
+          sudo apt install p7zip-full p7zip-rar
 
       - name: Install makensis
         if: matrix.pack-type == 'win'
         run: |
-          apt update
-          apt install nsis
+          sudo apt update
+          sudo apt install nsis
 
       - name: Upload ${{ matrix.pack-type }} Artifacts
         uses: actions/upload-artifact@v3
