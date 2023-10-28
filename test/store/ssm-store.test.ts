@@ -37,7 +37,7 @@ describe('SSMStore', () => {
         value = randomUUID(),
         version = Math.max(Math.floor(Math.random() * ((ctx.paramVersion ?? 100) - 1)), 1),
       }: {
-        type?: string,
+        type?: ParameterType,
         value?: string,
         version?: number,
       } = {}
