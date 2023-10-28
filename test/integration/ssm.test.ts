@@ -7,6 +7,8 @@ import clearSSM from '../helpers/clear-ssm';
 import resetConfig from '../helpers/reset-config';
 import clearTestScriptOutput from '../helpers/clear-test-script-output';
 import { readFile } from 'fs/promises';
+import addParam from '../helpers/add-param';
+import { ParameterType } from '@aws-sdk/client-ssm';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -67,5 +69,60 @@ describe('SSM', () => {
       expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, 'm'));
       expect(output).to.match(new RegExp(`^${ctx.param2.value}$`, 'm'));
       expect(output).to.match(new RegExp(`^${ctx.param3.value}$`, 'm'));
+    })
+
+  const chamberImportTest = ssmTest
+    .add('serviceName', 'griffin-cli')
+    .add('serviceEnvName', 'griffin-cli-test')
+    .add('params', (ctx) => [
+      { name: `/${ctx.serviceName}/param-one`, value: randomUUID() },
+      { name: `/${ctx.serviceName}/param-two`, value: randomUUID() },
+      { name: `/${ctx.serviceEnvName}/param-three`, value: randomUUID() },
+      { name: `/${ctx.serviceEnvName}/param-one`, value: randomUUID() },
+    ])
+    .do((ctx) => Promise.all(ctx.params.map((param) => addParam({
+      name: param.name,
+      value: param.value,
+      type: ParameterType.SECURE_STRING,
+    }))));
+
+  chamberImportTest
+    .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName])
+    .do((ctx) => addParam({
+      name: ctx.params[2].name,
+      value: randomUUID(),
+    }))
+    .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+    .it('should import chamber params and lock the version', async (ctx) => {
+      // This isn't great, but I can't find a way to guarantee the shell script has finished writing
+      // to the file by now.
+      await sleep(5_000)
+
+      const output = (await readFile('./test-script-output.txt')).toString();
+
+      expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
+      expect(output).to.match(new RegExp(`^${ctx.params[2].value}$`, 'm'));
+      expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
+    })
+
+  chamberImportTest
+    .add('updatedParamValue', randomUUID())
+    .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName, '--always-use-latest', '--allow-missing-value'])
+    .do((ctx) => addParam({
+      name: ctx.params[2].name,
+      value: ctx.updatedParamValue,
+    }))
+    .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+    .it('should import chamber params without locking the version', async (ctx) => {
+      // This isn't great, but I can't find a way to guarantee the shell script has finished writing
+      // to the file by now.
+      await sleep(5_000)
+
+      const output = (await readFile('./test-script-output.txt')).toString();
+
+      expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
+      expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
+
+      expect(output).to.match(new RegExp(`^${ctx.updatedParamValue}$`, 'm'));
     })
 });

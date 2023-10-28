@@ -67,7 +67,6 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       char: 't',
       description: 'the type for any parameters created in Parameter Store; default: SecureString',
       options: Object.values(ParameterType),
-      default: ParameterType.SECURE_STRING,
       dependsOn: ['from-dotenv'],
       helpGroup: 'DOTENV',
     }),
@@ -107,13 +106,29 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
   }
 
   private async importChamberSecrets(): Promise<void> {
-    const params = await Promise.all(this.flags['chamber-service']!.flatMap((prefix) => this.ssmStore.getParametersByPrefix(prefix)));
+    const params = await Promise.all(this.flags['chamber-service']!.map((prefix) => this.ssmStore.getParametersByPrefix(`/${prefix}`)));
 
-    params.flat().forEach((param) => this.configFile.setParamConfig(Source.SSM, param.name, {
-      envVarName: SSMStore.getEnvVarNameFromParamName(param.name),
-      version: !this.flags['always-use-latest'] ? param.version : undefined,
-      allowMissingValue: this.flags['allow-missing-value'],
-    }));
+    const seenVars = new Set();
+    params
+      .flat()
+      // To mirror Chamber's behavior, we should only import the last parameter that is defined for
+      // a given environment variable name.
+      .reverse()
+      .filter((param) => {
+        const envVarName = SSMStore.getEnvVarNameFromParamName(param.name);
+        if (seenVars.has(envVarName)) {
+          return false;
+        }
+
+        seenVars.add(envVarName);
+        return true;
+      })
+      .reverse()
+      .forEach((param) => this.configFile.setParamConfig(Source.SSM, param.name, {
+        envVarName: SSMStore.getEnvVarNameFromParamName(param.name),
+        version: !this.flags['always-use-latest'] ? param.version : undefined,
+        allowMissingValue: this.flags['allow-missing-value'],
+      }));
 
     await this.configFile.save();
   }
@@ -129,7 +144,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       const { updatedVersion } = await this.ssmStore.writeParam({
         name,
         value: config[envVarName],
-        type: this.flags.type as ParameterType,
+        type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
       });
 
       this.configFile.setParamConfig(Source.SSM, name, {

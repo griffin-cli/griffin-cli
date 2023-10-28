@@ -48,7 +48,7 @@ jobs:
           apt update
           apt install nsis
 
-      - name: Upload ${{ matrix.pack-type }}
+      - name: Upload ${{ matrix.pack-type }} Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.version }}-${{ matrix.pack-type }}
