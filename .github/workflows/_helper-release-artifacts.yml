@@ -23,5 +23,3 @@ jobs:
     with:
       version: ${{ inputs.version }}
       pack-types: ${{ inputs.pack-types }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

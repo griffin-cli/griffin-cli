@@ -9,9 +9,6 @@ on:
       pack-types:
         type: string
         required: true
-    secrets:
-      GITHUB_TOKEN:
-        required: true
 
 jobs:
   publish:
