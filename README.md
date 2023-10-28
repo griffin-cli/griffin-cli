@@ -80,7 +80,7 @@ $ npm install -g griffin-cli
 $ griffin COMMAND
 running command...
 $ griffin (--version)
-griffin-cli/0.1.0 linux-x64 node-v18.17.0
+griffin-cli/0.1.1 linux-x64 node-v18.17.0
 $ griffin --help [COMMAND]
 USAGE
   $ griffin COMMAND
