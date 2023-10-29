@@ -30,7 +30,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm ci
+          npm ci --omit=dev
 
       - name: Install 7-Zip
         if: matrix.pack-type == 'tarballs'
@@ -52,4 +52,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.version }}-${{ matrix.pack-type }}
-          path: dist/
+          path: dist/${{ matrix.pack-type == 'tarballs' && '*.tar.*' || format('{0}/*', matrix.pack-type) }}
