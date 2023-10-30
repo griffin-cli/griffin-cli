@@ -30,7 +30,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm ci --omit=dev
+          npm ci
 
       - name: Install 7-Zip
         if: matrix.pack-type == 'tarballs'
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build ${{ matrix.pack-type }}
         run: |
-          ./node_modules/.bin/oclif pack ${{ matrix.pack-type }}
+          ./node_modules/.bin/oclif pack ${{ matrix.pack-type }} ${{ matrix.pack-type == 'tarballs' && '--parallel' || '' }}
 
       - name: Upload ${{ matrix.pack-type }} Artifacts
         uses: actions/upload-artifact@v3
