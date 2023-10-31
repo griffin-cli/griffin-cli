@@ -25,3 +25,11 @@ jobs:
     uses: ./.github/workflows/_helper-release-artifacts.yml
     with:
       version: ${{ inputs.tag || github.event.release.tag_name }}
+
+  update-homebrew:
+    needs: [release-artifacts]
+    uses: ./.github/workflows/_helper-update-homebrew.yml
+    secrets:
+      GITHUB_HOMEBREW_TOKEN: ${{ secrets.GITHUB_HOMEBREW_TOKEN }}
+    with:
+      version: ${{ inputs.tag || github.event.release.tag_name }}

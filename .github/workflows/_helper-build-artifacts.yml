@@ -48,6 +48,13 @@ jobs:
         run: |
           ./node_modules/.bin/oclif pack ${{ matrix.pack-type }} ${{ matrix.pack-type == 'tarballs' && '--parallel' || '' }}
 
+      - name: Remove Hash
+        run: |
+          DIR="./dist/${{ matrix.pack-type == 'tarballs' && '' || format('{0}', matrix.pack-type) }}"
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          for file in $DIR/*$SHA-*; do mv "${file}" "${file/$SHA-/}"; done
+
       - name: Upload ${{ matrix.pack-type }} Artifacts
         uses: actions/upload-artifact@v3
         with:

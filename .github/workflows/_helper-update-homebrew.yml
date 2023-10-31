@@ -1,0 +1,51 @@
+name: ZZ-Update Homebrew
+
+on:
+  workflow_call:
+    inputs:
+      # Required
+      version:
+        required: true
+        type: string
+
+    secrets:
+      GITHUB_HOMEBREW_TOKEN:
+        required: true
+
+jobs:
+  update-homebrew:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download tarballs Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.version }}-tarballs
+          path: ./dist
+
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          echo "mac_intel=$(shasum -a 256 ./dist/griffin-${{ inputs.version }}-darwin-x64.tar.xz | cut -d " " -f 1)" >> $GITHUB_OUTPUT
+          echo "mac_arm=$(shasum -a 256 ./dist/griffin-${{ inputs.version }}-darwin-arm64.tar.xz | cut -d " " -f 1)" >> $GITHUB_OUTPUT
+          echo "linux_intel=$(shasum -a 256 ./dist/griffin-${{ inputs.version }}-linux-x64.tar.xz | cut -d " " -f 1)" >> $GITHUB_OUTPUT
+          echo "linux_arm=$(shasum -a 256 ./dist/griffin-${{ inputs.version }}-linux-arm64.tar.xz | cut -d " " -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_HOMEBREW_TOKEN }}
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: 'homebrew-brew',
+              workflow_id: 'update-formula.yml',
+              ref: 'main',
+              inputs: {
+                version: "${{ inputs.version }}",
+                sha256_mac_intel: "${{ steps.sha256.outputs.mac_intel }}",
+                sha256_mac_arm: "${{ steps.sha256.outputs.mac_arm }}",
+                sha256_linux_intel: "${{ steps.sha256.outputs.linux_intel }}",
+                sha256_linux_arm: "${{ steps.sha256.outputs.linux_arm }}",
+              },
+            })

@@ -25,11 +25,6 @@ jobs:
           name: ${{ inputs.version }}-${{ matrix.pack-type }}
           path: ./dist
 
-      - name: Remove Hash
-        run: |
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          for file in ./dist/*$SHA-*; do mv "${file}" "${file/$SHA-/}"; done
-
       - name: Update Release
         uses: svenstaro/upload-release-action@v2
         with:
