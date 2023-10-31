@@ -25,14 +25,6 @@ jobs:
         run: |
           npm ci
 
-      - name: Build
-        run: |
-          npm run build
-
-      - name: Prune Dev Dependencies
-        run: |
-          npm prune --omit=dev
-
       - name: Publish
         run: |
           npm publish
