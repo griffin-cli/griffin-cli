@@ -82,7 +82,7 @@
     }
   },
   "scripts": {
-    "clean": "shx rm -rf dist",
+    "clean": "shx rm -rf dist && shx rm -f tsconfig.tsbuildinfo",
     "build": "npm run clean && tsc",
     "lint": "eslint . --ext .ts --config .eslintrc",
     "lint:fix": "eslint . --ext .ts --config .eslintrc --fix",
