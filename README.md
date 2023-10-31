@@ -7,6 +7,8 @@ griffin-cli
 - [griffin-cli](#griffin-cli)
 - [Installation](#installation)
   - [Mac \& Linux](#mac--linux)
+    - [Homebrew](#homebrew)
+    - [Direct Install](#direct-install)
   - [Windows](#windows)
 - [AWS Configuration](#aws-configuration)
 - [Migrating to griffin](#migrating-to-griffin)
@@ -57,8 +59,20 @@ Alternatively, you can install using the tar files attached to the [release](htt
 
 ## Mac & Linux
 
+### Homebrew
+
+To install using brew, use the following commands
+
 ```sh
-VERSION={v0.1.1}          # Update with latest
+brew tap griffin-cli/brew
+brew update
+brew install griffin
+```
+
+### Direct Install
+
+```sh
+VERSION={vX.Y.Z}          # Update with latest
 OS={debian|linux}         # Select your OS
 ARCH={arm64|x64|arm|x86}  # Select your arch
 
@@ -136,21 +150,34 @@ USAGE
 
 # Commands
 <!-- commands -->
-* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-* [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
-* [`griffin export`](#griffin-export)
-* [`griffin help [COMMANDS]`](#griffin-help-commands)
-* [`griffin ssm config get`](#griffin-ssm-config-get)
-* [`griffin ssm config set`](#griffin-ssm-config-set)
-* [`griffin ssm create`](#griffin-ssm-create)
-* [`griffin ssm delete`](#griffin-ssm-delete)
-* [`griffin ssm history`](#griffin-ssm-history)
-* [`griffin ssm import`](#griffin-ssm-import)
-* [`griffin ssm read`](#griffin-ssm-read)
-* [`griffin ssm remove`](#griffin-ssm-remove)
-* [`griffin ssm update`](#griffin-ssm-update)
-* [`griffin ssm write`](#griffin-ssm-write)
-* [`griffin update [CHANNEL]`](#griffin-update-channel)
+- [griffin-cli](#griffin-cli)
+- [Installation](#installation)
+  - [Mac \& Linux](#mac--linux)
+    - [Homebrew](#homebrew)
+    - [Direct Install](#direct-install)
+  - [Windows](#windows)
+- [AWS Configuration](#aws-configuration)
+- [Migrating to griffin](#migrating-to-griffin)
+  - [Chamber](#chamber)
+  - [Dotenv](#dotenv)
+- [Roadmap](#roadmap)
+- [Usage](#usage)
+- [Commands](#commands)
+  - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+  - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
+  - [`griffin export`](#griffin-export)
+  - [`griffin help [COMMANDS]`](#griffin-help-commands)
+  - [`griffin ssm config get`](#griffin-ssm-config-get)
+  - [`griffin ssm config set`](#griffin-ssm-config-set)
+  - [`griffin ssm create`](#griffin-ssm-create)
+  - [`griffin ssm delete`](#griffin-ssm-delete)
+  - [`griffin ssm history`](#griffin-ssm-history)
+  - [`griffin ssm import`](#griffin-ssm-import)
+  - [`griffin ssm read`](#griffin-ssm-read)
+  - [`griffin ssm remove`](#griffin-ssm-remove)
+  - [`griffin ssm update`](#griffin-ssm-update)
+  - [`griffin ssm write`](#griffin-ssm-write)
+  - [`griffin update [CHANNEL]`](#griffin-update-channel)
 
 ## `griffin autocomplete [SHELL]`
 
