@@ -32,6 +32,7 @@ griffin-cli
   - [`griffin ssm update`](#griffin-ssm-update)
   - [`griffin ssm write`](#griffin-ssm-write)
   - [`griffin update [CHANNEL]`](#griffin-update-channel)
+  - [`griffin version`](#griffin-version)
 
 Griffin is a tool for managing all of your config.  Unlike other tools, such as chamber, that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code.  This effectively decouples your deployments from your config, allowing you to fully automate
 
@@ -178,6 +179,7 @@ USAGE
   - [`griffin ssm update`](#griffin-ssm-update)
   - [`griffin ssm write`](#griffin-ssm-write)
   - [`griffin update [CHANNEL]`](#griffin-update-channel)
+  - [`griffin version`](#griffin-version)
 
 ## `griffin autocomplete [SHELL]`
 
@@ -671,4 +673,24 @@ EXAMPLES
 ```
 
 _See code: [@oclif/plugin-update](https://github.com/oclif/plugin-update/blob/v4.1.3/src/commands/update.ts)_
+
+## `griffin version`
+
+```
+USAGE
+  $ griffin version [--json] [--verbose]
+
+FLAGS
+  --verbose  Show additional information about the CLI.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+FLAG DESCRIPTIONS
+  --verbose  Show additional information about the CLI.
+
+    Additionally shows the architecture, node version, operating system, and versions of plugins that the CLI is using.
+```
+
+_See code: [@oclif/plugin-version](https://github.com/oclif/plugin-version/blob/v2.0.4/src/commands/version.ts)_
 <!-- commandsstop -->
