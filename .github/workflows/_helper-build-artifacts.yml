@@ -48,9 +48,23 @@ jobs:
         run: |
           ./node_modules/.bin/oclif pack ${{ matrix.pack-type }} ${{ matrix.pack-type == 'tarballs' && '--parallel' || '' }}
 
+      - name: Package Info
+        id: file-info
+        run: |
+          if [[ ${{ matrix.pack-type }} == 'tarballs' ]]; then
+            echo "package_dir=" >> $GITHUB_OUTPUT
+            echo "ext_glob=*.tar.*" >> $GITHUB_OUTPUT
+          elif [[ ${{ matrix.pack-type }} == 'win' ]]; then
+            echo "package_dir=win32/" >> $GITHUB_OUTPUT
+            echo "ext_glob=*.exe" >> $GITHUB_OUTPUT
+          elif [[ ${{ matrix.pack-type }} == 'deb' ]]; then
+            echo "package_dir=${{ matrix.pack-type }}/" >> $GITHUB_OUTPUT
+            echo "ext_glob=*.deb" >> $GITHUB_OUTPUT
+          fi
+
       - name: Remove Hash
         run: |
-          DIR="./dist/${{ matrix.pack-type == 'tarballs' && '' || format('{0}', matrix.pack-type) }}"
+          DIR="./dist/${{ steps.file-info.outputs.package_dir }}"
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
 
           for file in $DIR/*$SHA-*; do mv "${file}" "${file/$SHA-/}"; done
@@ -59,4 +73,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.version }}-${{ matrix.pack-type }}
-          path: dist/${{ matrix.pack-type == 'tarballs' && '*.tar.*' || format('{0}/*', matrix.pack-type) }}
+          path: dist/${{ steps.file-info.outputs.package_dir }}${{ steps.file-info.outputs.ext_glob }}

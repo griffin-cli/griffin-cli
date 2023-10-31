@@ -30,6 +30,6 @@ jobs:
     needs: [release-artifacts]
     uses: ./.github/workflows/_helper-update-homebrew.yml
     secrets:
-      GITHUB_HOMEBREW_TOKEN: ${{ secrets.GITHUB_HOMEBREW_TOKEN }}
+      GITHUB_HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
     with:
       version: ${{ inputs.tag || github.event.release.tag_name }}
