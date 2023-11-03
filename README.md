@@ -6,9 +6,11 @@ griffin-cli
 
 - [griffin-cli](#griffin-cli)
 - [Installation](#installation)
-  - [Mac \& Linux](#mac--linux)
-    - [Homebrew](#homebrew)
-    - [Direct Install](#direct-install)
+  - [Homebrew](#homebrew)
+  - [Linux](#linux)
+    - [deb File - Debian-based Systems (e.g. Ubuntu)](#deb-file---debian-based-systems-eg-ubuntu)
+  - [Install via tarballs](#install-via-tarballs)
+  - [Docker](#docker)
   - [Windows](#windows)
 - [AWS Configuration](#aws-configuration)
 - [Migrating to griffin](#migrating-to-griffin)
@@ -58,9 +60,7 @@ npx griffin-cli
 
 Alternatively, you can install using the tar files attached to the [release](https://github.com/griffin-cli/griffin-cli/releases).
 
-## Mac & Linux
-
-### Homebrew
+## Homebrew
 
 To install using brew, use the following commands
 
@@ -70,19 +70,49 @@ brew update
 brew install griffin
 ```
 
-### Direct Install
+## Linux
+
+### deb File - Debian-based Systems (e.g. Ubuntu)
+
+1. Download the latest .deb file from the [releases page](https://github.com/griffin-cli/griffin-cli/releases).
+2. Install the package
 
 ```sh
-VERSION={vX.Y.Z}          # Update with latest
-OS={debian|linux}         # Select your OS
-ARCH={arm64|x64|arm|x86}  # Select your arch
+apt install /path/to/file.deb
+```
 
-# Download the tarball.
-wget https://github.com/griffin-cli/griffin-cli/releases/download/$VERSION/griffin-$VERSION-$OS-$ARCH.tar.gz
-# Extract it.
-mkdir -p ~/.griffin && tar -xvf griffin-$VERSION-$OS-$ARCH.tar.gz -C ~/.griffin --strip-components 1
-# Add it to your PATH.
-sudo ln -sf ~/.griffin/bin/griffin /usr/local/bin
+## Install via tarballs
+
+Tarballs for Linux, Windows, and Mac are available on the [releases page](https://github.com/griffin-cli/griffin-cli/releases).  You can download and unpack manually.  Alternatively, the following install script can be used to install on most Linux and Mac systems:
+
+```sh
+wget -q -O - https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/install.sh | bash
+```
+
+## Docker
+
+To run commands in an interactive shell, run
+
+```sh
+docker run -it --rm griffincli/griffin-cli bash
+```
+
+To run a command directly, specify the command to run after `griffincli/griffin-cli`.  For example, to check the version
+
+```sh
+docker run -it --rm griffincli/griffin-cli griffin version
+```
+
+To use a specific version, you can add the version tag after the image.  For example, you could run
+
+```sh
+docker run -it --rm griffincli/griffin-cli:0.2.0 bash
+```
+
+To use in a Dockerfile, add the following line
+
+```dockerfile
+FROM griffincli/griffin-cli
 ```
 
 ## Windows
@@ -122,7 +152,6 @@ griffin ssm import -d ./path/to/.env
 Griffin is growing!  We're always looking for contributors and maintainers to help us get to where we're going.  Amongst other things, Griffin is looking to add support for
 
 - Native package managers
-  - homebrew
   - apt
   - yum
 - Other AWS services
@@ -153,9 +182,11 @@ USAGE
 <!-- commands -->
 - [griffin-cli](#griffin-cli)
 - [Installation](#installation)
-  - [Mac \& Linux](#mac--linux)
-    - [Homebrew](#homebrew)
-    - [Direct Install](#direct-install)
+  - [Homebrew](#homebrew)
+  - [Linux](#linux)
+    - [deb File - Debian-based Systems (e.g. Ubuntu)](#deb-file---debian-based-systems-eg-ubuntu)
+  - [Install via tarballs](#install-via-tarballs)
+  - [Docker](#docker)
   - [Windows](#windows)
 - [AWS Configuration](#aws-configuration)
 - [Migrating to griffin](#migrating-to-griffin)
