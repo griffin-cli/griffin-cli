@@ -83,7 +83,7 @@ apt install /path/to/file.deb
 
 ## Install via tarballs
 
-Tarballs for Linux, Windows, and Mac are available on the [releases page](https://github.com/griffin-cli/griffin-cli/releases).  You can download and unpack manually.  Alternatively, the following install script can be used to install on most Linux and Mac systems:
+Tarballs for Linux, Windows, and Mac are available on the [releases page](https://github.com/griffin-cli/griffin-cli/releases).  You can download and unpack manually or you can use the script below to install on most Linux and Mac machines:
 
 ```sh
 wget -q -O - https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/install.sh | bash
