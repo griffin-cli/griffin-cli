@@ -8,11 +8,11 @@ fail() {
   exit 1
 }
 
-if ! [ -x "jq" ]; then
+if ! [ -x "$(command -v jq)" ]; then
   fail "jq is required, but not installed"
 fi
 
-if ! [ -x "wget" ]; then
+if ! [ -x "$(command -v wget)" ]; then
   fail "wget is required, but not installed"
 fi
 
