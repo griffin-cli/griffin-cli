@@ -33,3 +33,12 @@ jobs:
       GITHUB_HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
     with:
       version: ${{ inputs.tag || github.event.release.tag_name }}
+
+  docker-release:
+    needs: [npm-publish]
+    uses: ./.github/workflows/_helper-publish-docker.yml
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_TOKEN }}
+    with:
+      version: ${{ inputs.tag || github.event.release.tag_name }}
