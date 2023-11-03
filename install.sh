@@ -1,6 +1,6 @@
 #!/bin/bash
 
-GRIFFIN_DIR_PATH=${GRIFFIN_DIR_PATH:-"~/.griffin"}
+GRIFFIN_DIR_PATH=${GRIFFIN_DIR_PATH:-"$HOME/.griffin"}
 UNKNOWN_ARCH_MSG="unknown or unsupported CPU arch, try installing manually or using npm install -g griffin-cli"
 
 fail() {
@@ -46,7 +46,17 @@ else
   fail "unknown or unsupported OS, try installing manually or using npm install -g griffin-cli"
 fi
 
-wget https://github.com/griffin-cli/griffin-cli/releases/download/$CURRENT_VERSION/griffin-$CURRENT_VERSION-$OS-$ARCH.tar.gz
+TAR_FILE_NAME=griffin-$CURRENT_VERSION-$OS-$ARCH.tar.gz
+
+echo "Downloading tarball..."
+wget -q https://github.com/griffin-cli/griffin-cli/releases/download/$CURRENT_VERSION/$TAR_FILE_NAME
+
+echo "Extracting tarball..."
 mkdir -p $GRIFFIN_DIR_PATH
-tar -xvf griffin-$CURRENT_VERSION-$OS-$ARCH.tar.gz -C $GRIFFIN_DIR_PATH --strip-components 1
+tar -xf $TAR_FILE_NAME -C $GRIFFIN_DIR_PATH --strip-components 1
+
+echo "Installing..."
 sudo ln -sf $GRIFFIN_DIR_PATH/bin/griffin /usr/local/bin
+
+echo "Cleaning up..."
+rm -f $TAR_FILE_NAME
