@@ -89,6 +89,8 @@ jobs:
           remove_hash "./dist/deb" -1
 
       - name: Update Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           FILES=""
 
