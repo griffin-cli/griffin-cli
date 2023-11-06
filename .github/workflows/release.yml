@@ -25,6 +25,12 @@ jobs:
     uses: ./.github/workflows/_helper-release-artifacts.yml
     with:
       version: ${{ inputs.tag || github.event.release.tag_name }}
+    secrets:
+      GPG_KEY: ${{ secrets.GPG_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   update-homebrew:
     needs: [release-artifacts]

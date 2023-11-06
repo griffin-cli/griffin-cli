@@ -81,6 +81,12 @@
       "export": {
         "description": "Export config in the format specified."
       }
+    },
+    "update": {
+      "s3": {
+        "bucket": "griffin-cli-prod",
+        "testBucket": "griffin-cli-test"
+      }
     }
   },
   "scripts": {
@@ -90,13 +96,18 @@
     "lint:fix": "eslint . --ext .ts --config .eslintrc --fix",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
-    "prepack": "npm run build && oclif manifest && oclif readme",
+    "prepack": "oclif manifest && oclif readme",
+    "prepublishOnly": "npm run build",
     "test": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 nyc mocha \"test/**/*.test.ts\"",
     "test:unit": "mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
     "test:integration": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 mocha \"test/integration/*.test.ts\"",
     "version": "oclif readme && git add README.md",
     "up": "docker compose up -d",
-    "down": "docker compose down --volumes"
+    "down": "docker compose down --volumes",
+    "test:gha:pr": "gh act pull_request -s GITHUB_TOKEN=\"$(gh auth token)\" --secret-file .github/.secrets --var-file .github/.vars",
+    "pretest:gha:release": "aws s3 rm s3://griffin-cli-test/apt/ --recursive && touch Packages && aws s3 cp ./Packages s3://griffin-cli-test/apt/Packages && rm -f ./Packages && mkdir -p ./act-tmp/artifacts",
+    "test:gha:release": "gh act workflow_dispatch --input tag=v0.2.0 -W .github/workflows/release.yml -s GITHUB_TOKEN=\"$(gh auth token)\" --secret-file .github/.secrets --var-file .github/.vars --artifact-server-path ./act-tmp/artifacts",
+    "posttest:gha:release": "rm -rf ./act-tmp"
   },
   "engines": {
     "node": ">=18.18.0"
