@@ -6,21 +6,109 @@ on:
       version:
         type: string
         required: true
-      # Optional
-      pack-types:
-        type: string
-        default: '["deb", "tarballs", "win"]'
+
+    secrets:
+      GPG_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
 
 jobs:
   build:
-    uses: ./.github/workflows/_helper-build-artifacts.yml
-    with:
-      version: ${{ inputs.version }}
-      pack-types: ${{ inputs.pack-types }}
+    runs-on: ubuntu-latest
 
-  publish:
-    uses: ./.github/workflows/_helper-publish-artifacts.yml
-    needs: [build]
-    with:
-      version: ${{ inputs.version }}
-      pack-types: ${{ inputs.pack-types }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Dependencies
+        run: |
+          # Node dependencies
+          npm ci
+
+          # OS Dependencies
+          sudo apt update
+          sudo apt install -y p7zip-full p7zip-rar nsis apt-utils unzip
+
+          # AWS CLI
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Build
+        run: |
+          npm run build
+
+      - name: Build Artifacts
+        run: |
+          ./node_modules/.bin/oclif pack tarballs --parallel
+          ./node_modules/.bin/oclif pack win
+
+      - name: Build and Upload Debian Packages
+        env:
+          DRY_RUN: ${{ vars.GRIFFIN_TEST_RUN }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          node .github/scripts/create-apt-release.js
+
+      - name: Standardize Artifacts
+        run: |
+          remove_hash() {
+            for file in $1/*$2*; do mv "${file}" "${file/$2/}"; done
+          }
+
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          mv ./dist/deb/amd64/* ./dist/deb
+          mv ./dist/deb/arm64/* ./dist/deb
+          mv ./dist/deb/armel/* ./dist/deb
+
+          remove_hash "./dist" $SHA-
+          remove_hash "./dist/win32" $SHA-
+          remove_hash "./dist/deb" -1
+
+      - name: Update Release
+        run: |
+          TARBALL_FILES=()
+          for file in dist/*.tar.*; do TARBALL_FILES+=$file; done
+
+          DEB_FILES=()
+          for file in dist/deb/*.deb; do DEB_FILES+=$file; done
+
+          WIN_FILES=()
+          for file in dist/win32/*.exe; do WIN_FILES+=$file; done
+
+          if [[ "${{ vars.GRIFFIN_TEST_RUN }}" == "true" ]]; then
+            CMD=echo
+          else
+            CMD=gh
+          fi
+
+          IFS=' ' ${CMD} release upload ${{ inputs.version }} "${TARBALL_FILES[@]}" "${DEB_FILES[@]}" "${WIN_FILES[@]}" --clobber
+
+      - name: Upload tarball Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ inputs.version }}-tarballs
+          path: dist/*.tar.*

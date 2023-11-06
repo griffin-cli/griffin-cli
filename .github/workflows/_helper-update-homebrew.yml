@@ -36,7 +36,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_HOMEBREW_TOKEN }}
           script: |
-            github.rest.actions.createWorkflowDispatch({
+            const payload = {
               owner: context.repo.owner,
               repo: 'homebrew-brew',
               workflow_id: 'update-formula.yml',
@@ -48,4 +48,11 @@ jobs:
                 sha256_linux_intel: "${{ steps.sha256.outputs.linux_intel }}",
                 sha256_linux_arm: "${{ steps.sha256.outputs.linux_arm }}",
               },
-            })
+            };
+
+            if (${{ vars.GRIFFIN_TEST_RUN }}) {
+              console.log(JSON.stringify(payload));
+              return;
+            }
+
+            github.rest.actions.createWorkflowDispatch(payload)

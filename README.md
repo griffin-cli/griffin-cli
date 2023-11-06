@@ -8,7 +8,8 @@ griffin-cli
 - [Installation](#installation)
   - [Homebrew](#homebrew)
   - [Linux](#linux)
-    - [deb File - Debian-based Systems (e.g. Ubuntu)](#deb-file---debian-based-systems-eg-ubuntu)
+    - [apt](#apt)
+    - [deb File](#deb-file)
   - [Install via tarballs](#install-via-tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
@@ -72,7 +73,27 @@ brew install griffin
 
 ## Linux
 
-### deb File - Debian-based Systems (e.g. Ubuntu)
+### apt
+
+If you're using a relatively modern version of Ubuntu, use the following to add the griffin repo and install it:
+
+```sh
+wget -qO- https://griffin-cli-prod.s3.amazonaws.com/pub.gpg | sudo tee /usr/share/keyrings/griffin.gpg
+echo "deb [arch=amd64,arm64,armel signed-by=/usr/share/keyrings/griffin.gpg] https://griffin-cli-prod.s3.amazonaws.com/apt/ /" | sudo tee /etc/apt/sources.list.d/griffin.list > /dev/null
+sudo apt update
+sudo apt install -y griffin
+```
+
+On older versions, you can use `apt-key add` instead:
+
+```sh
+wget -qO- https://griffin-cli-prod.s3.amazonaws.com/pub.gpg | apt-key add -
+echo "deb https://griffin-cli-prod.s3.amazonaws.com/apt/ /" | sudo tee /etc/apt/sources.list.d/griffin.list
+sudo apt update
+sudo apt install -y griffin
+```
+
+### deb File
 
 1. Download the latest .deb file from the [releases page](https://github.com/griffin-cli/griffin-cli/releases).
 2. Install the package
@@ -184,7 +205,8 @@ USAGE
 - [Installation](#installation)
   - [Homebrew](#homebrew)
   - [Linux](#linux)
-    - [deb File - Debian-based Systems (e.g. Ubuntu)](#deb-file---debian-based-systems-eg-ubuntu)
+    - [apt](#apt)
+    - [deb File](#deb-file)
   - [Install via tarballs](#install-via-tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
