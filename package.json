@@ -1,6 +1,6 @@
 {
   "name": "griffin-cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tool for pulling secrets and other config with version control.",
   "author": "Calvin Moore @c1moore",
   "bin": {
@@ -15,7 +15,8 @@
     "/dist",
     "/oclif.manifest.json",
     "/LICENSE",
-    "/README.md"
+    "/README.md",
+    "/npm-shrinkwrap.json"
   ],
   "dependencies": {
     "@aws-sdk/client-ssm": "^3.438.0",
@@ -97,7 +98,7 @@
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
     "prepack": "oclif manifest && oclif readme",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm shrinkwrap",
     "test": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 nyc mocha \"test/**/*.test.ts\"",
     "test:unit": "mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
     "test:integration": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 mocha \"test/integration/*.test.ts\"",
