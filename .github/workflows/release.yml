@@ -33,7 +33,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   update-homebrew:
-    # needs: [release-artifacts]
+    needs: [release-artifacts]
     uses: ./.github/workflows/_helper-update-homebrew.yml
     secrets:
       GITHUB_HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
