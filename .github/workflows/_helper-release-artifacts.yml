@@ -98,7 +98,7 @@ jobs:
           # Debian files
           for file in dist/deb/*.deb; do FILES="${FILES} ${file}"; done
 
-          # Windoes executables
+          # Windows executables
           for file in dist/win32/*.exe; do FILES="${FILES} ${file}"; done
 
           if [[ "${{ vars.GRIFFIN_TEST_RUN }}" == "true" ]]; then
