@@ -90,14 +90,16 @@ jobs:
 
       - name: Update Release
         run: |
-          TARBALL_FILES=()
-          for file in dist/*.tar.*; do TARBALL_FILES+=$file; done
+          FILES=""
 
-          DEB_FILES=()
-          for file in dist/deb/*.deb; do DEB_FILES+=$file; done
+          # Tarballs
+          for file in dist/*.tar.*; do FILES="${FILES} ${file}"; done
 
-          WIN_FILES=()
-          for file in dist/win32/*.exe; do WIN_FILES+=$file; done
+          # Debian files
+          for file in dist/deb/*.deb; do FILES="${FILES} ${file}"; done
+
+          # Windows executables
+          for file in dist/win32/*.exe; do FILES="${FILES} ${file}"; done
 
           if [[ "${{ vars.GRIFFIN_TEST_RUN }}" == "true" ]]; then
             CMD=echo
@@ -105,7 +107,7 @@ jobs:
             CMD=gh
           fi
 
-          IFS=' ' ${CMD} release upload ${{ inputs.version }} "${TARBALL_FILES[@]}" "${DEB_FILES[@]}" "${WIN_FILES[@]}" --clobber
+          ${CMD} release upload ${{ inputs.version }} $FILES --clobber
 
       - name: Upload tarball Artifacts
         uses: actions/upload-artifact@v3
