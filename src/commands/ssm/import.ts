@@ -53,7 +53,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     // dotenv
     'from-dotenv': Flags.string({
       char: 'd',
-      description: 'import parameters from a dotenv file and save to Parameter Store; should start with a forward slash',
+      description: 'import parameters from a dotenv file and save to Parameter Store; default: .env',
       dependsOn: ['prefix'],
       exactlyOne: ['name', 'chamber-service', 'from-dotenv'],
       helpGroup: 'DOTENV',
