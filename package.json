@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.433.0",
-    "@oclif/test": "^3.0.4",
+    "@oclif/test": "^3.1.1",
     "@types/chai": "^4",
     "@types/chai-as-promised": "^7.1.7",
     "@types/mocha": "^10.0.3",
