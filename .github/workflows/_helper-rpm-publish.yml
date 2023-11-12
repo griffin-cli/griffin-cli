@@ -1,0 +1,62 @@
+name: ZZ-RPM Publish
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+    secrets:
+      GPG_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+
+jobs:
+  publish-rpm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download tarballs Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.version }}-tarballs
+          path: ./dist
+
+      - name: Build RPM
+        id: build-rpm
+        uses: ./.github/actions/build-rpm-package
+        with:
+          spec_file: ./.github/rpm/griffin.spec
+          sources:
+            dist/griffin-${{ inputs.version }}-linux-x64.tar.gz
+          template_vars: |
+            _version=${{ inputs.version }}
+          gpg_key: ${{ secrets.GPG_KEY }}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Upload Package
+        if: vars.GRIFFIN_TEST_RUN
+        uses: actions/upload-artifact@v3
+        with:
+          name: rpm-package
+          path: ${{ steps.build-rpm.outputs.rpm_package_path }}
+
+      - name: Release RPM Package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ vars.GRIFFIN_TEST_RUN }}" == "true" ]]; then
+            CMD=echo
+          else
+            CMD=gh
+          fi
+
+          ${CMD} release upload ${{ inputs.version }} ${{ steps.build-rpm.outputs.rpm_package_path }} --clobber
