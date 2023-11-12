@@ -1,4 +1,5 @@
 import { stdin } from 'mock-stdin';
+import * as envfile from 'envfile';
 
 import test from '../helpers/register';
 import { randomUUID } from 'crypto';
@@ -6,14 +7,16 @@ import { expect } from 'chai';
 import clearSSM from '../helpers/clear-ssm';
 import resetConfig from '../helpers/reset-config';
 import clearTestScriptOutput from '../helpers/clear-test-script-output';
-import { readFile } from 'fs/promises';
+import { readFile, unlink, writeFile } from 'fs/promises';
 import addParam from '../helpers/add-param';
 import { ParameterType } from '@aws-sdk/client-ssm';
+import { ConfigFile, Source } from '../../src/config';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('SSM', () => {
   const ssmTest = test
+    .do(() => clearSSM())
     .setEnv('AWS_REGION', 'us-east-1')
     .setEnv('AWS_ACCESS_KEY_ID', 'abc')
     .setEnv('AWS_SECRET_ACCESS_KEY', '123')
@@ -71,58 +74,154 @@ describe('SSM', () => {
       expect(output).to.match(new RegExp(`^${ctx.param3.value}$`, 'm'));
     })
 
-  const chamberImportTest = ssmTest
-    .add('serviceName', 'griffin-cli')
-    .add('serviceEnvName', 'griffin-cli-test')
-    .add('params', (ctx) => [
-      { name: `/${ctx.serviceName}/param-one`, value: randomUUID() },
-      { name: `/${ctx.serviceName}/param-two`, value: randomUUID() },
-      { name: `/${ctx.serviceEnvName}/param-three`, value: randomUUID() },
-      { name: `/${ctx.serviceEnvName}/param-one`, value: randomUUID() },
-    ])
-    .do((ctx) => Promise.all(ctx.params.map((param) => addParam({
-      name: param.name,
-      value: param.value,
-      type: ParameterType.SECURE_STRING,
-    }))));
+  describe('import', () => {
+    describe('dotenv', () => {
+      const dotEnvImportTest = ssmTest
+        .add('filename', () => `test-${randomUUID()}.env`)
+        .finally(async (ctx) => {
+          try {
+            await unlink(ctx.filename)
+          } catch (err) {
+            // Ignore an error here...
+          }
+        })
+        .add('prefix', () => `/griffin-test/${randomUUID()}`)
+        .add('params', () => ({
+          URL: 'https://www.google.com/?q=recursion',
+          MULTILINE_ESCAPED: 'line1\\nline2\\nline3',
+          BOOL: 'true',
+          NUMBER: '42',
+        }))
+        .do(async (ctx) => writeFile(ctx.filename, envfile.stringify(ctx.params)));
 
-  chamberImportTest
-    .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName])
-    .do((ctx) => addParam({
-      name: ctx.params[2].name,
-      value: randomUUID(),
-    }))
-    .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
-    .it('should import chamber params and lock the version', async (ctx) => {
-      // This isn't great, but I can't find a way to guarantee the shell script has finished writing
-      // to the file by now.
-      await sleep(5_000)
+      dotEnvImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
+        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', 'URL', 'MULTILINE_ESCAPED', 'BOOL', 'NUMBER'])
+        .it('should import dotenv files', async (ctx) => {
+          await sleep(5_000);
 
-      const output = (await readFile('./test-script-output.txt')).toString();
+          const output = (await readFile('./test-script-output.txt')).toString();
 
-      expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
-      expect(output).to.match(new RegExp(`^${ctx.params[2].value}$`, 'm'));
-      expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
-    })
+          expect(output.trim()).to.equal(`${ctx.params.URL}
+${ctx.params.MULTILINE_ESCAPED}
+${ctx.params.BOOL}
+${ctx.params.NUMBER}`);
+        });
 
-  chamberImportTest
-    .add('updatedParamValue', randomUUID())
-    .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName, '--always-use-latest', '--allow-missing-value'])
-    .do((ctx) => addParam({
-      name: ctx.params[2].name,
-      value: ctx.updatedParamValue,
-    }))
-    .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
-    .it('should import chamber params without locking the version', async (ctx) => {
-      // This isn't great, but I can't find a way to guarantee the shell script has finished writing
-      // to the file by now.
-      await sleep(5_000)
+      dotEnvImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
+        .it('should lock the versions', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig('test');
 
-      const output = (await readFile('./test-script-output.txt')).toString();
+          Object.keys(ctx.params).forEach((paramName) => {
+            expect(configFile.getParamConfig(Source.SSM, `${ctx.prefix}/${paramName}`)?.version).to.equal('1');
+          });
+        });
 
-      expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
-      expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
+      dotEnvImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix.replace(/^\//, '')])
+        .it('should work if the prefix does not start with a slash', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig('test');
 
-      expect(output).to.match(new RegExp(`^${ctx.updatedParamValue}$`, 'm'));
-    })
+          Object.keys(ctx.params).forEach((paramName) => {
+            expect(configFile.getParamConfig(Source.SSM, `${ctx.prefix}/${paramName}`)).to.exist;
+          });
+        });
+
+      dotEnvImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', `${ctx.prefix}/`])
+        .it('should work if the prefix ends with a slash', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig('test');
+
+          Object.keys(ctx.params).forEach((paramName) => {
+            expect(configFile.getParamConfig(Source.SSM, `${ctx.prefix}/${paramName}`)).to.exist;
+          });
+        });
+
+      dotEnvImportTest
+        .do((ctx) => addParam({
+          name: `${ctx.prefix}/URL`,
+          value: 'https://bing.com/',
+        }))
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
+        .exit(1)
+        .it('should fail if a parameter already exists');
+
+      dotEnvImportTest
+        .add('overwrittenParam', (ctx) => `${ctx.prefix}/URL`)
+        .do((ctx) => addParam({
+          name: ctx.overwrittenParam,
+          value: 'https://bing.com/',
+        }))
+        .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix, '--overwrite'])
+        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', 'URL'])
+        .it('should overwrite parameters if the overwrite flag is provided', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig('test');
+
+          expect(configFile.getParamConfig(Source.SSM, ctx.overwrittenParam)?.version).to.equal('2');
+
+          await sleep(5000);
+
+          const output = (await readFile('./test-script-output.txt')).toString();
+          expect(output.trim()).to.equal(ctx.params.URL);
+        });
+    });
+
+    describe('chamber', () => {
+      const chamberImportTest = ssmTest
+        .add('serviceName', 'griffin-cli')
+        .add('serviceEnvName', 'griffin-cli-test')
+        .add('params', (ctx) => [
+          { name: `/${ctx.serviceName}/param-one`, value: randomUUID() },
+          { name: `/${ctx.serviceName}/param-two`, value: randomUUID() },
+          { name: `/${ctx.serviceEnvName}/param-three`, value: randomUUID() },
+          { name: `/${ctx.serviceEnvName}/param-one`, value: randomUUID() },
+        ])
+        .do((ctx) => Promise.all(ctx.params.map((param) => addParam({
+          name: param.name,
+          value: param.value,
+          type: ParameterType.SECURE_STRING,
+        }))));
+
+      chamberImportTest
+        .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName])
+        .do((ctx) => addParam({
+          name: ctx.params[2].name,
+          value: randomUUID(),
+        }))
+        .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+        .it('should import chamber params and lock the version', async (ctx) => {
+          // This isn't great, but I can't find a way to guarantee the shell script has finished writing
+          // to the file by now.
+          await sleep(5_000)
+
+          const output = (await readFile('./test-script-output.txt')).toString();
+
+          expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
+          expect(output).to.match(new RegExp(`^${ctx.params[2].value}$`, 'm'));
+          expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
+        })
+
+      chamberImportTest
+        .add('updatedParamValue', randomUUID())
+        .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName, '--always-use-latest', '--allow-missing-value'])
+        .do((ctx) => addParam({
+          name: ctx.params[2].name,
+          value: ctx.updatedParamValue,
+        }))
+        .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+        .it('should import chamber params without locking the version', async (ctx) => {
+          // This isn't great, but I can't find a way to guarantee the shell script has finished writing
+          // to the file by now.
+          await sleep(5_000)
+
+          const output = (await readFile('./test-script-output.txt')).toString();
+
+          expect(output).to.match(new RegExp(`^${ctx.params[1].value}$`, 'm'));
+          expect(output).to.match(new RegExp(`^${ctx.params[3].value}$`, 'm'));
+
+          expect(output).to.match(new RegExp(`^${ctx.updatedParamValue}$`, 'm'));
+        });
+    });
+  });
 });

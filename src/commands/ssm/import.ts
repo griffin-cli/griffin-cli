@@ -15,7 +15,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
 
   static examples = [
     '<%= config.bin %> <%= command.id %> --name /example/var',
-    '<%= config.bin %> <%= command.id %> --from-dotenv .env',
+    '<%= config.bin %> <%= command.id %> --from-dotenv .env --prefix /example/path',
     '<%= config.bin %> <%= command.id %> --chamber-service /example',
     '<%= config.bin %> <%= command.id %> --chamber-service /example --allow-missing-value --always-use-latest',
   ];
@@ -53,7 +53,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     // dotenv
     'from-dotenv': Flags.string({
       char: 'd',
-      description: 'import parameters from a dotenv file and save to Parameter Store',
+      description: 'import parameters from a dotenv file and save to Parameter Store; default: .env',
       dependsOn: ['prefix'],
       exactlyOne: ['name', 'chamber-service', 'from-dotenv'],
       helpGroup: 'DOTENV',
@@ -67,6 +67,11 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       char: 't',
       description: 'the type for any parameters created in Parameter Store; default: SecureString',
       options: Object.values(ParameterType),
+      dependsOn: ['from-dotenv'],
+      helpGroup: 'DOTENV',
+    }),
+    overwrite: Flags.boolean({
+      description: 'if a parameter already exists with the generated name, should it be overwritten',
       dependsOn: ['from-dotenv'],
       helpGroup: 'DOTENV',
     }),
@@ -134,9 +139,9 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
   }
 
   private async importDotEnvConfig(): Promise<void> {
-    const fileContents = await readFile(this.flags['from-dotenv']!);
+    const fileContents = await readFile(this.flags['from-dotenv'] || '.env');
     const config = await parse(fileContents);
-    const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '')}` : '';
+    const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '').replace(/\/$/, '')}` : '';
 
     await Promise.all(Object.keys(config).map(async (envVarName) => {
       const name = `${prefix}/${envVarName}`;
@@ -145,6 +150,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
         name,
         value: config[envVarName],
         type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
+        allowOverwrite: this.flags.overwrite,
       });
 
       this.configFile.setParamConfig(Source.SSM, name, {

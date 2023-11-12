@@ -7,6 +7,7 @@ export default async () => {
 
   const ssm = new SSMClient({
     endpoint: process.env.GRIFFIN_AWS_SSM_ENDPOINT,
+    region: 'us-east-1',
   });
 
   let nextToken: string | undefined;

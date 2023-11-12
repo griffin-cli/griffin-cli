@@ -13,3 +13,4 @@ oclif.manifest.json
 act-tmp/
 .griffin-config.*.json
 .env
+tsconfig.tsbuildinfo
