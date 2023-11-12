@@ -30,7 +30,7 @@
     "csv-stringify": "^6.4.4",
     "dotenv": "^16.3.1",
     "envfile": "^6.18.0",
-    "yaml": "^2.3.3"
+    "yaml": "^2.3.4"
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.433.0",
