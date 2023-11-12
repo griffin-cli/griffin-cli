@@ -139,7 +139,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
   }
 
   private async importDotEnvConfig(): Promise<void> {
-    const fileContents = await readFile(this.flags['from-dotenv']!);
+    const fileContents = await readFile(this.flags['from-dotenv'] || '.env');
     const config = await parse(fileContents);
     const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '').replace(/\/$/, '')}` : '';
 

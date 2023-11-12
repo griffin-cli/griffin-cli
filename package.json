@@ -105,6 +105,7 @@
     "version": "oclif readme && git add README.md",
     "up": "docker compose up -d",
     "down": "docker compose down --volumes",
+    "reset": "npm run down && npm run up",
     "test:gha:pr": "gh act pull_request -s GITHUB_TOKEN=\"$(gh auth token)\" --secret-file .github/.secrets --var-file .github/.vars",
     "pretest:gha:release": "aws s3 rm s3://griffin-cli-test/apt/ --recursive && touch Packages && aws s3 cp ./Packages s3://griffin-cli-test/apt/Packages && rm -f ./Packages && mkdir -p ./act-tmp/artifacts",
     "test:gha:release": "gh act workflow_dispatch --input tag=v0.2.2 -W .github/workflows/release.yml -s GITHUB_TOKEN=\"$(gh auth token)\" --secret-file .github/.secrets --var-file .github/.vars --artifact-server-path ./act-tmp/artifacts",

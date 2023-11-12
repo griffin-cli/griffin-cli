@@ -79,6 +79,10 @@ export default class ConfigFile {
   async save(): Promise<void> {
     await writeFile(ConfigFile.getFileName(this.env), JSON.stringify(this.config, undefined, 2));
 
+    await this.reload();
+  }
+
+  async reload(): Promise<void> {
     this.config = await ConfigFile.loadConfigFromFile(this.env);
   }
 
