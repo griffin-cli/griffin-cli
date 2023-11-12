@@ -10,7 +10,8 @@ griffin-cli
   - [Linux](#linux)
     - [apt](#apt)
     - [deb File](#deb-file)
-  - [Install via tarballs](#install-via-tarballs)
+    - [rpm File](#rpm-file)
+  - [tarballs](#tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
 - [AWS Configuration](#aws-configuration)
@@ -102,7 +103,18 @@ sudo apt install -y griffin
 apt install /path/to/file.deb
 ```
 
-## Install via tarballs
+### rpm File
+
+1. Download the latest .rpm file from the [releases page](https://github.com/griffin-cli/griffin-cli/releases).
+2. Install the package
+
+```sh
+yum install /path/to/file.rpm
+# or
+dnf install /path/to/file.rpm
+```
+
+## tarballs
 
 Tarballs for Linux, Windows, and Mac are available on the [releases page](https://github.com/griffin-cli/griffin-cli/releases).  You can download and unpack manually or you can use the script below to install on most Linux and Mac machines:
 
@@ -173,8 +185,7 @@ griffin ssm import -d ./path/to/.env
 Griffin is growing!  We're always looking for contributors and maintainers to help us get to where we're going.  Amongst other things, Griffin is looking to add support for
 
 - Native package managers
-  - apt
-  - yum
+  - yum - Improved support
 - Other AWS services
   - S3
   - SecretsManager
@@ -207,7 +218,8 @@ USAGE
   - [Linux](#linux)
     - [apt](#apt)
     - [deb File](#deb-file)
-  - [Install via tarballs](#install-via-tarballs)
+    - [rpm File](#rpm-file)
+  - [tarballs](#tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
 - [AWS Configuration](#aws-configuration)
