@@ -1,0 +1,32 @@
+name: 'Build RPM'
+
+description: 'Build RPM package. Supports RPM macros with --define.'
+
+inputs:
+  sources:
+    required: true
+    description: 'list of files to be used as RPM sources, delimited by new lines'
+  spec_file:
+    required: true
+    description: 'path to your rpm spec file'
+  template_vars:
+    required: false
+    description: 'variables to be consumed in the spec file as rpmbuild macros, delimited by new lines'
+  gpg_private_key:
+    description: "ASCII-armored content of the GPG signing key's secret/private key"
+    required: true
+  gpg_key:
+    description: "GPG signing key's GPG ID (name)"
+    required: true
+  gpg_passphrase:
+    description: 'Passphrase to use the GPG signing key'
+    required: true
+outputs:
+  rpm_package_name:
+    description: 'name of the RPM package'
+  rpm_package_path:
+    description: 'path to the built RPM package'
+
+runs:
+  using: 'docker'
+  image: "Dockerfile"

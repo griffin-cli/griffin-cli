@@ -10,3 +10,6 @@
 node_modules
 oclif.manifest.json
 .secrets
+act-tmp/
+.griffin-config.*.json
+.env
