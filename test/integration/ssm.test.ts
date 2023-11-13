@@ -1,5 +1,4 @@
 import { stdin } from 'mock-stdin';
-import * as envfile from 'envfile';
 
 import test from '../helpers/register';
 import { randomUUID } from 'crypto';
@@ -11,6 +10,7 @@ import { readFile, unlink, writeFile } from 'fs/promises';
 import addParam from '../helpers/add-param';
 import { ParameterType } from '@aws-sdk/client-ssm';
 import { ConfigFile, Source } from '../../src/config';
+import EnvFile from '../../src/utils/envfile';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -92,7 +92,7 @@ describe('SSM', () => {
           BOOL: 'true',
           NUMBER: '42',
         }))
-        .do(async (ctx) => writeFile(ctx.filename, envfile.stringify(ctx.params)));
+        .do(async (ctx) => writeFile(ctx.filename, EnvFile.stringify(ctx.params)));
 
       dotEnvImportTest
         .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
