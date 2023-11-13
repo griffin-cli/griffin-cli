@@ -2,11 +2,11 @@ import { writeFile } from 'fs/promises';
 
 import { Flags } from '@oclif/core';
 import * as csv from 'csv-stringify/sync';
-import * as envfile from 'envfile';
 import * as yaml from 'yaml';
 
 import BaseCommand from '../base-command';
 import { UnsupportedOptionsError } from '../errors';
+import EnvFile from '../utils/envfile';
 import getEnvVars from '../utils/get-env-vars';
 
 export enum ExportOutputFormat {
@@ -49,7 +49,7 @@ export default class Export extends BaseCommand<typeof Export> {
       }
 
       case ExportOutputFormat.DOTENV: {
-        return this.print(envfile.stringify(envVars));
+        return this.print(EnvFile.stringify(envVars));
       }
 
       case ExportOutputFormat.YAML: {
