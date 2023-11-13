@@ -86,8 +86,6 @@ const buildPackage = async () => {
   debug('Initializing rpmbuild tree...');
   await exec('rpmdev-setuptree');
 
-  await exec('ls', ['-la']);
-
   const specFile = getInput('spec_file');
   const targetSpecFile = `${rpmBuildTmp}/SPECS/${basename(specFile)}`;
 
