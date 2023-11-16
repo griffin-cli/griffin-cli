@@ -99,7 +99,7 @@
     "prepack": "oclif manifest && oclif readme",
     "prepublishOnly": "npm run build && npm shrinkwrap",
     "test": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 nyc mocha \"test/**/*.test.ts\"",
-    "test:unit": "mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
+    "test:unit": "TEST_OUTPUT=1 mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
     "test:integration": "TEST_OUTPUT=1 GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 mocha \"test/integration/*.test.ts\"",
     "version": "oclif readme && git add README.md",
     "up": "docker compose up -d",
