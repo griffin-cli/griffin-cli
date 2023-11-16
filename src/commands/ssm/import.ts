@@ -29,6 +29,10 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       char: 'm',
       description: 'do not fail when running exec or exporting variables if parameter does not exist',
     }),
+    quiet: Flags.boolean({
+      char: 'q',
+      description: 'quiet (no output)',
+    }),
     // SSM
     name: Flags.string({
       char: 'n',
@@ -53,7 +57,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     // dotenv
     'from-dotenv': Flags.string({
       char: 'd',
-      description: 'import parameters from a dotenv file and save to Parameter Store; default: .env',
+      description: 'import parameters from a dotenv file and save to Parameter Store',
       dependsOn: ['prefix'],
       exactlyOne: ['name', 'chamber-service', 'from-dotenv'],
       helpGroup: 'DOTENV',
@@ -143,23 +147,38 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     const config = await parse(fileContents);
     const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '').replace(/\/$/, '')}` : '';
 
-    await Promise.all(Object.keys(config).map(async (envVarName) => {
-      const name = `${prefix}/${envVarName}`;
+    const envVarNames = Object.keys(config);
+    let failureCount = 0;
 
-      const { updatedVersion } = await this.ssmStore.writeParam({
-        name,
-        value: config[envVarName],
-        type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
-        allowOverwrite: this.flags.overwrite,
-      });
+    await Promise.all(envVarNames.map(async (envVarName) => {
+      try {
+        const name = `${prefix}/${envVarName}`;
 
-      this.configFile.setParamConfig(Source.SSM, name, {
-        envVarName,
-        version: !this.flags['always-use-latest'] ? updatedVersion : undefined,
-        allowMissingValue: this.flags['allow-missing-value'],
-      });
+        const { updatedVersion } = await this.ssmStore.writeParam({
+          name,
+          value: config[envVarName],
+          type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
+          allowOverwrite: this.flags.overwrite,
+        });
+
+        this.configFile.setParamConfig(Source.SSM, name, {
+          envVarName,
+          version: !this.flags['always-use-latest'] ? updatedVersion : undefined,
+          allowMissingValue: this.flags['allow-missing-value'],
+        });
+      } catch (err) {
+        failureCount += 1;
+
+        if (!this.flags.quiet) {
+          this.logToStderr(`Failed to import ${envVarName}: ${err instanceof Error ? err.message : err}`);
+        }
+      }
     }));
 
     await this.configFile.save();
+
+    if (!this.flags.quiet && failureCount < envVarNames.length) {
+      this.log(`Successfully imported ${envVarNames.length - failureCount} parameters.`);
+    }
   }
 }

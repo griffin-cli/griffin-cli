@@ -144,8 +144,9 @@ ${ctx.params.NUMBER}`);
           value: 'https://bing.com/',
         }))
         .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
-        .exit(1)
-        .it('should fail if a parameter already exists');
+        .it('should not fail if a parameter already exists', (ctx) => {
+          expect(ctx.stderr).to.include('Failed to import');
+        });
 
       dotEnvImportTest
         .add('overwrittenParam', (ctx) => `${ctx.prefix}/URL`)
