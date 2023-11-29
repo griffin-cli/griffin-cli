@@ -8,8 +8,8 @@ export default class SSMConfigGet extends SSMBaseCommand<typeof SSMConfigGet> {
   static description = 'Get the config value for a parameter tracked by griffin.';
 
   static examples = [
-    '<%= config.bin %> <%= command.id %> --store ssm --name /example/var --config-name version',
-    '<%= config.bin %> <%= command.id %> --store ssm --name /example/var --all',
+    '<%= config.bin %> <%= command.id %> --name /example/var --config-name version',
+    '<%= config.bin %> <%= command.id %> --name /example/var --all',
   ];
 
   static flags = {
