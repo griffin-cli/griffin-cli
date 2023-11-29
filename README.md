@@ -356,9 +356,9 @@ DESCRIPTION
   Get the config value for a parameter tracked by griffin.
 
 EXAMPLES
-  $ griffin ssm config get --store ssm --name /example/var --config-name version
+  $ griffin ssm config get --name /example/var --config-name version
 
-  $ griffin ssm config get --store ssm --name /example/var --all
+  $ griffin ssm config get --name /example/var --all
 ```
 
 _See code: [src/commands/ssm/config/get.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.4.1/src/commands/ssm/config/get.ts)_
@@ -502,12 +502,13 @@ Import a parameter from Parameter Store or another config source.
 
 ```
 USAGE
-  $ griffin ssm import [--env <value>] [-l] [-m] [-e <value> -n <value>] [-c <value>] [-t
+  $ griffin ssm import [--env <value>] [-l] [-m] [-q] [-e <value> -n <value>] [-c <value>] [-t
     SecureString|String|StringList [-d <value> --prefix <value>]] [--overwrite ]
 
 FLAGS
   -l, --always-use-latest    do not lock the version, instead always pull the latest version
   -m, --allow-missing-value  do not fail when running exec or exporting variables if parameter does not exist
+  -q, --quiet                quiet (no output)
   --env=<value>              [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
                              alphanumeric string; default: default
 
@@ -515,7 +516,7 @@ CHAMBER FLAGS
   -c, --chamber-service=<value>...  import all parameters using this chamber service prefix
 
 DOTENV FLAGS
-  -d, --from-dotenv=<value>  import parameters from a dotenv file and save to Parameter Store; default: .env
+  -d, --from-dotenv=<value>  import parameters from a dotenv file and save to Parameter Store
   -t, --type=<option>        the type for any parameters created in Parameter Store; default: SecureString
                              <options: SecureString|String|StringList>
   --overwrite                if a parameter already exists with the generated name, should it be overwritten
