@@ -1,6 +1,6 @@
 {
   "name": "griffin-cli",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Tool for pulling secrets and other config with version control.",
   "author": "Calvin Moore @c1moore",
   "bin": {
