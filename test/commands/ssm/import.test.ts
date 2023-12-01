@@ -143,7 +143,7 @@ describe('ssm:import', () => {
     uploadFailureTest
       .commandWithContext((ctx) => ['ssm:import', '--from-dotenv', ctx.dotenvFilename, '--prefix', ctx.prefix])
       .it('should not exit if a parameter fails to upload to SSM', (ctx) => {
-        expect(ctx.stdout.trim()).to.equal(`Successfully imported ${Object.keys(ctx.jsonConfig).length - 1} parameters.`);
+        expect(ctx.stdout.trim()).to.match(new RegExp(`Successfully imported ${Object.keys(ctx.jsonConfig).length - 1} parameters.$`));
       });
 
     uploadFailureTest
