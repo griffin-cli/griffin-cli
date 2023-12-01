@@ -47,6 +47,42 @@ describe('ConfigFile', () => {
         .do(() => mock())
         .do((ctx) => expect(ConfigFile.loadConfig(ctx.env)).to.not.be.rejected)
         .it('should not throw an error if the config file does not exist');
+
+      configFileTest
+        .add('cwd', './cwd_test')
+        .add('source', Source.SSM)
+        .add('id', () => randomUUID())
+        .do((ctx) => mock({
+          [`./${ctx.cwd}/.griffin-config.${ctx.env}.json`]: JSON.stringify({
+            [ctx.source]: {
+              [ctx.id]: {},
+            },
+          }),
+        }))
+        .it('should properly load the config when cwd is specified with a relative path', async (ctx) => {
+          const config = await ConfigFile.loadConfig(ctx.env, ctx.cwd);
+
+          expect(config).to.be.instanceOf(ConfigFile);
+          expect(config.hasParamConfig(ctx.source, ctx.id)).to.equal(true);
+        });
+
+      configFileTest
+        .add('cwd', '/var/cwd_test')
+        .add('source', Source.SSM)
+        .add('id', () => randomUUID())
+        .do((ctx) => mock({
+          [`${ctx.cwd}/.griffin-config.${ctx.env}.json`]: JSON.stringify({
+            [ctx.source]: {
+              [ctx.id]: {},
+            },
+          }),
+        }))
+        .it('should properly load the config when cwd is specified with a relative path', async (ctx) => {
+          const config = await ConfigFile.loadConfig(ctx.env, ctx.cwd);
+
+          expect(config).to.be.instanceOf(ConfigFile);
+          expect(config.hasParamConfig(ctx.source, ctx.id)).to.equal(true);
+        });
     });
   });
 

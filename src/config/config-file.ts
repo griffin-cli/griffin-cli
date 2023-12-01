@@ -1,4 +1,7 @@
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import {
+  mkdir, readFile, stat, writeFile,
+} from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 
 import ParamConfig from './param-config';
 import Source from './source';
@@ -18,6 +21,7 @@ export default class ConfigFile {
   private constructor(
     private env: string,
     private config: Config = {},
+    private cwd?: string,
   ) { }
 
   static async doesExist(env: string): Promise<boolean> {
@@ -34,13 +38,15 @@ export default class ConfigFile {
     }
   }
 
-  static async loadConfig(env: string): Promise<ConfigFile> {
-    return new ConfigFile(env, await this.loadConfigFromFile(env));
+  static async loadConfig(env: string, cwd?: string): Promise<ConfigFile> {
+    return new ConfigFile(env, await this.loadConfigFromFile(env, cwd), cwd);
   }
 
-  private static async loadConfigFromFile(env: string): Promise<Config> {
+  private static async loadConfigFromFile(env: string, cwd?: string): Promise<Config> {
     try {
-      const data = await readFile(this.getFileName(env));
+      const filename = this.getFileName(env);
+      const filepath = cwd ? resolve(process.cwd(), cwd, filename) : filename;
+      const data = await readFile(filepath);
 
       return JSON.parse(data.toString());
     } catch (error) {
@@ -77,7 +83,15 @@ export default class ConfigFile {
   }
 
   async save(): Promise<void> {
-    await writeFile(ConfigFile.getFileName(this.env), JSON.stringify(this.config, undefined, 2));
+    const filename = ConfigFile.getFileName(this.env);
+    const filepath = this.cwd ? resolve(process.cwd(), this.cwd, filename) : filename;
+
+    if (this.cwd) {
+      // Make sure the directory exists.
+      await mkdir(dirname(filepath), { recursive: true });
+    }
+
+    await writeFile(filepath, JSON.stringify(this.config, undefined, 2));
 
     await this.reload();
   }

@@ -6,11 +6,12 @@ import { expect } from 'chai';
 import clearSSM from '../helpers/clear-ssm';
 import resetConfig from '../helpers/reset-config';
 import clearTestScriptOutput from '../helpers/clear-test-script-output';
-import { readFile, unlink, writeFile } from 'fs/promises';
+import { readFile, rm, stat, unlink, writeFile } from 'fs/promises';
 import addParam from '../helpers/add-param';
 import { ParameterType } from '@aws-sdk/client-ssm';
 import { ConfigFile, Source } from '../../src/config';
 import EnvFile from '../../src/utils/envfile';
+import { resolve } from 'path';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -23,6 +24,7 @@ describe('SSM', () => {
     .stdout()
     .stderr()
     .add('stdin', () => stdin())
+    .add('env', 'test')
     .finally((ctx) => ctx.stdin.restore())
     .finally(() => resetConfig())
     .finally(() => clearTestScriptOutput())
@@ -73,6 +75,47 @@ describe('SSM', () => {
       expect(output).to.match(new RegExp(`^${ctx.param2.value}$`, 'm'));
       expect(output).to.match(new RegExp(`^${ctx.param3.value}$`, 'm'));
     })
+
+  ssmTest
+    .add('cwd', () => './cwd_test')
+    .finally((ctx) => rm(resolve(process.cwd(), ctx.cwd), { recursive: true }))
+    .add('param1', () => ({ name: '/param/one', envVarName: 'ONE', value: randomUUID() }))
+    .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param1.name, '--env-var-name', ctx.param1.envVarName, '--value', ctx.param1.value])
+    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`])
+    .it('should save the config to the config file in the cwd directory', async (ctx) => {
+      await sleep(5_000);
+
+      const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
+      expect(dirStats.isDirectory()).to.equal(true);
+
+      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.json`));
+      expect(fileStats.isFile()).to.equal(true);
+
+      const output = (await readFile('./test-script-output.txt')).toString();
+      expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, 'm'));
+    });
+
+  ssmTest
+    .add('cwd', () => './cwd_test')
+    .finally((ctx) => rm(resolve(process.cwd(), ctx.cwd), { recursive: true }))
+    .add('param1', () => ({ name: '/param/one', envVarName: 'ONE', value: randomUUID() }))
+    .add('param2', () => ({ name: '/param/two', envVarName: 'TWO', value: randomUUID() }))
+    .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param1.name, '--env-var-name', ctx.param1.envVarName, '--value', ctx.param1.value])
+    .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param2.name, '--env-var-name', ctx.param2.envVarName, '--value', ctx.param2.value])
+    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`, ctx.param2.envVarName])
+    .it('should not throw an error if the directory already exists', async (ctx) => {
+      await sleep(5_000);
+
+      const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
+      expect(dirStats.isDirectory()).to.equal(true);
+
+      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.json`));
+      expect(fileStats.isFile()).to.equal(true);
+
+      const output = (await readFile('./test-script-output.txt')).toString();
+      expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, 'm'));
+      expect(output).to.match(new RegExp(`^${ctx.param2.value}$`, 'm'));
+    });
 
   describe('import', () => {
     describe('dotenv', () => {
