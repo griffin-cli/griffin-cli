@@ -24,7 +24,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
       default: 'default',
     }),
     cwd: Flags.string({
-      description: 'the directory where griffin\'s config file is located; default: .',
+      description: 'the directory where griffin\'s config file is located, both relative and absolute paths are supported; default: .',
     }),
   };
 
