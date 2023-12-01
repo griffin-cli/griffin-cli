@@ -23,6 +23,9 @@ export default abstract class BaseCommand<T extends typeof Command & {
       description: 'the name of the environment (e.g. prod, qa, staging), this can be any alphanumeric string; default: default',
       default: 'default',
     }),
+    cwd: Flags.string({
+      description: 'the directory where griffin\'s config file is located; default: .',
+    }),
   };
 
   static configFile?: ConfigFile;
@@ -48,7 +51,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
 
     this.configFile = (this.constructor as T).configFile
       || BaseCommand.configFile
-      || await ConfigFile.loadConfig(this.flags.env);
+      || await ConfigFile.loadConfig(this.flags.env, this.flags.cwd);
   }
 
   async catch(err: CommandError): Promise<void> {
