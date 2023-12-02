@@ -1,0 +1,16 @@
+name: Main Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tests:
+    uses: ./.github/workflows/_helper-test.yml
+
+  lint:
+    uses: ./.github/workflows/_helper-lint.yml
+
+  build:
+    uses: ./.github/workflows/_helper-build.yml
