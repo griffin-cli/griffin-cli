@@ -4,6 +4,8 @@ import { ParameterType } from '@aws-sdk/client-ssm';
 import { Flags } from '@oclif/core';
 import { CommandError } from '@oclif/core/lib/interfaces';
 import { parse } from 'dotenv';
+import { RateLimiter } from 'limiter';
+import { Listr } from 'listr2';
 
 import { Source } from '../../config';
 import ParameterAlreadyExistsError from '../../errors/parameter-already-exists.error';
@@ -143,42 +145,75 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
   }
 
   private async importDotEnvConfig(): Promise<void> {
-    const fileContents = await readFile(this.flags['from-dotenv'] || '.env');
-    const config = await parse(fileContents);
-    const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '').replace(/\/$/, '')}` : '';
-
-    const envVarNames = Object.keys(config);
+    let totalEnvVars = 0;
     let failureCount = 0;
 
-    await Promise.all(envVarNames.map(async (envVarName) => {
-      try {
-        const name = `${prefix}/${envVarName}`;
+    const tasks = new Listr<{ config?: Record<string, string> }>([
+      {
+        title: 'Loading dotenv file',
+        task: async (ctx) => {
+          const fileContents = await readFile(this.flags['from-dotenv'] || '.env');
+          ctx.config = await parse(fileContents);
+        },
+      },
+      {
+        title: 'Uploading to SSM',
+        task: async (ctx, task) => {
+          const prefix = this.flags.prefix ? `/${this.flags.prefix.replace(/^\//, '').replace(/\/$/, '')}` : '';
+          const envVarNames = Object.keys(ctx.config ?? {});
 
-        const { updatedVersion } = await this.ssmStore.writeParam({
-          name,
-          value: config[envVarName],
-          type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
-          allowOverwrite: this.flags.overwrite,
-        });
+          totalEnvVars = envVarNames.length;
 
-        this.configFile.setParamConfig(Source.SSM, name, {
-          envVarName,
-          version: !this.flags['always-use-latest'] ? updatedVersion : undefined,
-          allowMissingValue: this.flags['allow-missing-value'],
-        });
-      } catch (err) {
-        failureCount += 1;
+          const rateLimiter = new RateLimiter({
+            // AWS doesn't clearly state the max throughput for `PutParameter` actions. From
+            // experimentation, more than 3 requests per second is prone to surpass rate limits.
+            tokensPerInterval: 3,
+            interval: 'second',
+          });
 
-        if (!this.flags.quiet) {
-          this.logToStderr(`Failed to import ${envVarName}: ${err instanceof Error ? err.message : err}`);
-        }
-      }
-    }));
+          await Promise.all(envVarNames.map(async (envVarName) => {
+            try {
+              await rateLimiter.removeTokens(1);
 
-    await this.configFile.save();
+              const name = `${prefix}/${envVarName}`;
 
-    if (!this.flags.quiet && failureCount < envVarNames.length) {
-      this.log(`Successfully imported ${envVarNames.length - failureCount} parameters.`);
+              // eslint-disable-next-line no-param-reassign
+              task.output = `Creating ${name}`;
+
+              const { updatedVersion } = await this.ssmStore.writeParam({
+                name,
+                value: ctx.config![envVarName],
+                type: this.flags.type as ParameterType ?? ParameterType.SECURE_STRING,
+                allowOverwrite: this.flags.overwrite,
+              });
+
+              this.configFile.setParamConfig(Source.SSM, name, {
+                envVarName,
+                version: !this.flags['always-use-latest'] ? updatedVersion : undefined,
+                allowMissingValue: this.flags['allow-missing-value'],
+              });
+            } catch (err) {
+              failureCount += 1;
+
+              if (!this.flags.quiet) {
+                this.logToStderr(`Failed to import ${envVarName}: ${err instanceof Error ? err.message : err}`);
+              }
+            }
+          }));
+        },
+      },
+      {
+        title: 'Saving config',
+        task: async () => {
+          await this.configFile.save();
+        },
+      },
+    ], { silentRendererCondition: () => this.flags.quiet });
+
+    await tasks.run({});
+
+    if (!this.flags.quiet && failureCount < totalEnvVars) {
+      this.log(`Successfully imported ${totalEnvVars - failureCount} parameters.`);
     }
   }
 }
