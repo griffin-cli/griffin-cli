@@ -41,7 +41,7 @@
     "@types/mocha": "^10.0.4",
     "@types/mock-fs": "^4.13.4",
     "@types/node": "^20.9.0",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.10.0",
     "aws-sdk-client-mock": "^3.0.0",
     "chai": "^4",
