@@ -3,6 +3,8 @@ griffin-cli
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 [![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
+[![codecov](https://codecov.io/github/griffin-cli/griffin-cli/graph/badge.svg?token=6L9NEI261E)](https://codecov.io/github/griffin-cli/griffin-cli)
+![Release Workflow](https://github.com/griffin-cli/griffin-cli/actions/workflows/release.yml/badge.svg?event=release)
 
 - [griffin-cli](#griffin-cli)
 - [Installation](#installation)

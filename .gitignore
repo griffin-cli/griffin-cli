@@ -14,3 +14,4 @@ act-tmp/
 .griffin-config.*.json
 .env
 tsconfig.tsbuildinfo
+coverage/
