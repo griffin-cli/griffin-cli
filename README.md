@@ -214,22 +214,22 @@ USAGE
 
 # Commands
 <!-- commands -->
-- [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-- [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
-- [`griffin export`](#griffin-export)
-- [`griffin help [COMMANDS]`](#griffin-help-commands)
-- [`griffin ssm config get`](#griffin-ssm-config-get)
-- [`griffin ssm config set`](#griffin-ssm-config-set)
-- [`griffin ssm create`](#griffin-ssm-create)
-- [`griffin ssm delete`](#griffin-ssm-delete)
-- [`griffin ssm history`](#griffin-ssm-history)
-- [`griffin ssm import`](#griffin-ssm-import)
-- [`griffin ssm read`](#griffin-ssm-read)
-- [`griffin ssm remove`](#griffin-ssm-remove)
-- [`griffin ssm update`](#griffin-ssm-update)
-- [`griffin ssm write`](#griffin-ssm-write)
-- [`griffin update [CHANNEL]`](#griffin-update-channel)
-- [`griffin version`](#griffin-version)
+* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+* [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
+* [`griffin export`](#griffin-export)
+* [`griffin help [COMMANDS]`](#griffin-help-commands)
+* [`griffin ssm config get`](#griffin-ssm-config-get)
+* [`griffin ssm config set`](#griffin-ssm-config-set)
+* [`griffin ssm create`](#griffin-ssm-create)
+* [`griffin ssm delete`](#griffin-ssm-delete)
+* [`griffin ssm history`](#griffin-ssm-history)
+* [`griffin ssm import`](#griffin-ssm-import)
+* [`griffin ssm read`](#griffin-ssm-read)
+* [`griffin ssm remove`](#griffin-ssm-remove)
+* [`griffin ssm update`](#griffin-ssm-update)
+* [`griffin ssm write`](#griffin-ssm-write)
+* [`griffin update [CHANNEL]`](#griffin-update-channel)
+* [`griffin version`](#griffin-version)
 
 ## `griffin autocomplete [SHELL]`
 
