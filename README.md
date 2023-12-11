@@ -204,7 +204,7 @@ $ npm install -g griffin-cli
 $ griffin COMMAND
 running command...
 $ griffin (--version)
-griffin-cli/0.5.2 linux-x64 node-v18.18.2
+griffin-cli/0.6.0 linux-x64 node-v18.18.2
 $ griffin --help [COMMAND]
 USAGE
   $ griffin COMMAND
@@ -260,7 +260,7 @@ EXAMPLES
   $ griffin autocomplete --refresh-cache
 ```
 
-_See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomplete/blob/v3.0.2/src/commands/autocomplete/index.ts)_
+_See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomplete/blob/v3.0.3/src/commands/autocomplete/index.ts)_
 
 ## `griffin exec COMMAND [ARGS]`
 
@@ -290,7 +290,7 @@ EXAMPLES
   $ griffin exec --pristine -- ./server
 ```
 
-_See code: [src/commands/exec.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/exec.ts)_
+_See code: [src/commands/exec.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/exec.ts)_
 
 ## `griffin export`
 
@@ -320,7 +320,7 @@ EXAMPLES
   $ griffin export --output ./.env --format dotenv
 ```
 
-_See code: [src/commands/export.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/export.ts)_
+_See code: [src/commands/export.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/export.ts)_
 
 ## `griffin help [COMMANDS]`
 
@@ -340,7 +340,7 @@ DESCRIPTION
   Display help for griffin.
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.0.7/src/commands/help.ts)_
+_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.0.8/src/commands/help.ts)_
 
 ## `griffin ssm config get`
 
@@ -370,7 +370,7 @@ EXAMPLES
   $ griffin ssm config get --name /example/var --all
 ```
 
-_See code: [src/commands/ssm/config/get.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/config/get.ts)_
+_See code: [src/commands/ssm/config/get.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/config/get.ts)_
 
 ## `griffin ssm config set`
 
@@ -404,7 +404,7 @@ EXAMPLES
   $ griffin ssm config set --name /example/var --no-allow-missing-value
 ```
 
-_See code: [src/commands/ssm/config/set.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/config/set.ts)_
+_See code: [src/commands/ssm/config/set.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/config/set.ts)_
 
 ## `griffin ssm create`
 
@@ -454,7 +454,7 @@ EXAMPLES
   $ griffin ssm create --name /example/var --env-var-name EXAMPLE_VER --type SecureString
 ```
 
-_See code: [src/commands/ssm/create.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/create.ts)_
+_See code: [src/commands/ssm/create.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/create.ts)_
 
 ## `griffin ssm delete`
 
@@ -478,7 +478,7 @@ EXAMPLES
   $ griffin ssm delete --name /example/var
 ```
 
-_See code: [src/commands/ssm/delete.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/delete.ts)_
+_See code: [src/commands/ssm/delete.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/delete.ts)_
 
 ## `griffin ssm history`
 
@@ -511,7 +511,7 @@ EXAMPLES
   $ griffin ssm history --name /example/var
 ```
 
-_See code: [src/commands/ssm/history.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/history.ts)_
+_See code: [src/commands/ssm/history.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/history.ts)_
 
 ## `griffin ssm import`
 
@@ -559,7 +559,7 @@ EXAMPLES
   $ griffin ssm import --chamber-service /example --allow-missing-value --always-use-latest
 ```
 
-_See code: [src/commands/ssm/import.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/import.ts)_
+_See code: [src/commands/ssm/import.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/import.ts)_
 
 ## `griffin ssm read`
 
@@ -599,7 +599,7 @@ EXAMPLES
   $ griffin ssm read --name /example/var --version 3 --quiet
 ```
 
-_See code: [src/commands/ssm/read.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/read.ts)_
+_See code: [src/commands/ssm/read.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/read.ts)_
 
 ## `griffin ssm remove`
 
@@ -623,7 +623,7 @@ EXAMPLES
   $ griffin ssm remove --name /example/var
 ```
 
-_See code: [src/commands/ssm/remove.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/remove.ts)_
+_See code: [src/commands/ssm/remove.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/remove.ts)_
 
 ## `griffin ssm update`
 
@@ -662,7 +662,7 @@ EXAMPLES
   $ griffin ssm update --name /example/var --from-stdin
 ```
 
-_See code: [src/commands/ssm/update.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/update.ts)_
+_See code: [src/commands/ssm/update.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/update.ts)_
 
 ## `griffin ssm write`
 
@@ -713,7 +713,7 @@ EXAMPLES
   $ griffin ssm write --name /example/var --env-var-name EXAMPLE_VER --type SecureString
 ```
 
-_See code: [src/commands/ssm/write.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.5.2/src/commands/ssm/write.ts)_
+_See code: [src/commands/ssm/write.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.0/src/commands/ssm/write.ts)_
 
 ## `griffin update [CHANNEL]`
 
@@ -750,7 +750,7 @@ EXAMPLES
     $ griffin update --available
 ```
 
-_See code: [@oclif/plugin-update](https://github.com/oclif/plugin-update/blob/v4.1.4/src/commands/update.ts)_
+_See code: [@oclif/plugin-update](https://github.com/oclif/plugin-update/blob/v4.1.5/src/commands/update.ts)_
 
 ## `griffin version`
 
@@ -770,5 +770,5 @@ FLAG DESCRIPTIONS
     Additionally shows the architecture, node version, operating system, and versions of plugins that the CLI is using.
 ```
 
-_See code: [@oclif/plugin-version](https://github.com/oclif/plugin-version/blob/v2.0.8/src/commands/version.ts)_
+_See code: [@oclif/plugin-version](https://github.com/oclif/plugin-version/blob/v2.0.9/src/commands/version.ts)_
 <!-- commandsstop -->
