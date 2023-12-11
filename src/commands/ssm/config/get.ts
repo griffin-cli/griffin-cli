@@ -21,7 +21,7 @@ export default class SSMConfigGet extends SSMBaseCommand<typeof SSMConfigGet> {
     'config-name': Flags.string({
       char: 'c',
       description: 'the name of the config option',
-      options: ['version', 'envVarName', 'allowMissingVersion'],
+      options: ['version', 'envVarName', 'allowMissingValue'],
       exactlyOne: ['config-name', 'all'],
     }),
     all: Flags.boolean({
@@ -32,7 +32,7 @@ export default class SSMConfigGet extends SSMBaseCommand<typeof SSMConfigGet> {
   };
 
   public async run(): Promise<void> {
-    const paramConfig = await this.configFile.getParamConfig(
+    const paramConfig = this.configFile.getParamConfig(
       Source.SSM,
       this.flags.name,
     );
@@ -50,7 +50,7 @@ export default class SSMConfigGet extends SSMBaseCommand<typeof SSMConfigGet> {
 
     switch (configName) {
       case 'envVarName': {
-        this.log(paramConfig[configName] || 'not set');
+        this.log(paramConfig.envVarName || 'not set');
         return;
       }
 

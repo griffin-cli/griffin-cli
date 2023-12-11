@@ -23,11 +23,13 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
     }),
     'always-use-latest': Flags.boolean({
       char: 'l',
+      allowNo: true,
       description: 'do not lock the version, instead always pull the latest version; if false, the latest version is pulled from Parameter Store and set as the current version; to use a different version, use --use-version instead',
       exclusive: ['use-version'],
     }),
     'allow-missing-value': Flags.boolean({
       char: 'm',
+      allowNo: true,
       description: 'do not fail when running exec or exporting variables if this parameter does not exist',
     }),
     'use-version': Flags.string({
@@ -41,10 +43,6 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
     const paramConfig = {
       ...this.configFile.getParamConfig(Source.SSM, this.flags.name),
     };
-
-    if (this.flags['env-var-name']) {
-      paramConfig.envVarName = this.flags['env-var-name'];
-    }
 
     paramConfig.allowMissingValue = this.flags['allow-missing-value'] ?? paramConfig.allowMissingValue;
     paramConfig.envVarName = this.flags['env-var-name'] || paramConfig.envVarName;
