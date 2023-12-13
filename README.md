@@ -158,6 +158,18 @@ Download the executable available on the [release](https://github.com/griffin-cl
 
 Griffin uses the official [AWS SDK](https://github.com/aws/aws-sdk-js-v3) to access AWS.  To use AWS-backed stores, you must [configure both your credentials and region](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/configuring-the-jssdk.html).
 
+If you're using a config file or credentials file with the `default` profile, you can run griffin without any additional configuration:
+
+```sh
+griffin ssm history /my/var
+```
+
+If you're using a named profile, you can use the `AWS_PROFILE` environment variable to tell the AWS SDK which profile to load
+
+```sh
+AWS_PROFILE=prod griffin ssm history /my/var
+```
+
 # Migrating to griffin
 
 ## Chamber
@@ -214,22 +226,39 @@ USAGE
 
 # Commands
 <!-- commands -->
-* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-* [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
-* [`griffin export`](#griffin-export)
-* [`griffin help [COMMANDS]`](#griffin-help-commands)
-* [`griffin ssm config get`](#griffin-ssm-config-get)
-* [`griffin ssm config set`](#griffin-ssm-config-set)
-* [`griffin ssm create`](#griffin-ssm-create)
-* [`griffin ssm delete`](#griffin-ssm-delete)
-* [`griffin ssm history`](#griffin-ssm-history)
-* [`griffin ssm import`](#griffin-ssm-import)
-* [`griffin ssm read`](#griffin-ssm-read)
-* [`griffin ssm remove`](#griffin-ssm-remove)
-* [`griffin ssm update`](#griffin-ssm-update)
-* [`griffin ssm write`](#griffin-ssm-write)
-* [`griffin update [CHANNEL]`](#griffin-update-channel)
-* [`griffin version`](#griffin-version)
+- [griffin-cli](#griffin-cli)
+- [Installation](#installation)
+  - [Homebrew](#homebrew)
+  - [Linux](#linux)
+    - [apt](#apt)
+    - [deb File](#deb-file)
+    - [rpm File](#rpm-file)
+  - [tarballs](#tarballs)
+  - [Docker](#docker)
+  - [Windows](#windows)
+- [AWS Configuration](#aws-configuration)
+- [Migrating to griffin](#migrating-to-griffin)
+  - [Chamber](#chamber)
+  - [Dotenv](#dotenv)
+- [Roadmap](#roadmap)
+- [Usage](#usage)
+- [Commands](#commands)
+  - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+  - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
+  - [`griffin export`](#griffin-export)
+  - [`griffin help [COMMANDS]`](#griffin-help-commands)
+  - [`griffin ssm config get`](#griffin-ssm-config-get)
+  - [`griffin ssm config set`](#griffin-ssm-config-set)
+  - [`griffin ssm create`](#griffin-ssm-create)
+  - [`griffin ssm delete`](#griffin-ssm-delete)
+  - [`griffin ssm history`](#griffin-ssm-history)
+  - [`griffin ssm import`](#griffin-ssm-import)
+  - [`griffin ssm read`](#griffin-ssm-read)
+  - [`griffin ssm remove`](#griffin-ssm-remove)
+  - [`griffin ssm update`](#griffin-ssm-update)
+  - [`griffin ssm write`](#griffin-ssm-write)
+  - [`griffin update [CHANNEL]`](#griffin-update-channel)
+  - [`griffin version`](#griffin-version)
 
 ## `griffin autocomplete [SHELL]`
 
