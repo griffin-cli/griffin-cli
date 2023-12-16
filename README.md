@@ -158,6 +158,18 @@ Download the executable available on the [release](https://github.com/griffin-cl
 
 Griffin uses the official [AWS SDK](https://github.com/aws/aws-sdk-js-v3) to access AWS.  To use AWS-backed stores, you must [configure both your credentials and region](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/configuring-the-jssdk.html).
 
+If you're using a config file or credentials file with the `default` profile, you can run griffin without any additional configuration:
+
+```sh
+griffin ssm history /my/var
+```
+
+If you're using a named profile, you can use the `AWS_PROFILE` environment variable to tell the AWS SDK which profile to load
+
+```sh
+AWS_PROFILE=prod griffin ssm history /my/var
+```
+
 # Migrating to griffin
 
 ## Chamber
