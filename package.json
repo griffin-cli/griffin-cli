@@ -47,7 +47,7 @@
     "aws-sdk-client-mock": "^3.0.0",
     "chai": "^4",
     "chai-as-promised": "^7.1.1",
-    "eslint": "^8.55.0",
+    "eslint": "^8.56.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb-typescript": "^17.1.0",
     "eslint-plugin-import": "^2.29.0",
