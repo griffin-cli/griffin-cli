@@ -26,7 +26,7 @@
     "@oclif/plugin-help": "^6.0.9",
     "@oclif/plugin-update": "^4.1.5",
     "@oclif/plugin-version": "^2.0.9",
-    "@oclif/plugin-warn-if-update-available": "^3.0.6",
+    "@oclif/plugin-warn-if-update-available": "^3.0.7",
     "csv-stringify": "^6.4.5",
     "dotenv": "^16.3.1",
     "limiter": "^2.1.0",
