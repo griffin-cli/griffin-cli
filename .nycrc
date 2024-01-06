@@ -2,6 +2,7 @@
   "extends": "@istanbuljs/nyc-config-typescript",
   "reporter": ["lcov", "text"],
   "exclude": [
-    "src/errors/*.ts"
+    "src/errors/*.ts",
+    "test/**/**"
   ]
 }
