@@ -8,7 +8,7 @@ import { MissingRequiredParamError, ParameterNotFoundError, ParameterVersionNotF
 import SSMStore from '../../src/store/ssm-store';
 import ParamDefinition from '../../src/types/param-definition';
 
-describe.only('SSMStore', () => {
+describe('SSMStore', () => {
   describe('Static Methods', () => {
     describe('getEnvVarNameFromParamName', () => {
       test.it('should work with a param without a prefix', () => {
