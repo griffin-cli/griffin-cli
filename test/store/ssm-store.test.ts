@@ -549,19 +549,19 @@ describe('SSMStore', () => {
           Parameter: {},
         }))
         .it('should throw a ParameterNotFoundError if the version is not set', async (ctx) => {
-          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
         });
 
       ssmStoreTest
         .do((ctx) => ctx.ssmClient.on(GetParameterCommand).resolves({}))
         .it('should throw a ParameterNotFoundError if the parameter is not set', async (ctx) => {
-          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
         });
 
       ssmStoreTest
         .add('errorMsg', 'Something bad happened.')
         .do((ctx) => ctx.ssmClient.on(GetParameterCommand).rejects(ctx.errorMsg))
-        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
+        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
     });
 
     describe('writeParam', () => {
