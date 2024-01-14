@@ -1,13 +1,32 @@
+<!-- omit from toc -->
 griffin-cli
 =================
 
-[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
+[![NPM Version](https://img.shields.io/npm/v/griffin-cli)](https://www.npmjs.com/package/griffin-cli)
 [![codecov](https://codecov.io/github/griffin-cli/griffin-cli/graph/badge.svg?token=6L9NEI261E)](https://codecov.io/github/griffin-cli/griffin-cli)
 ![Release Workflow](https://github.com/griffin-cli/griffin-cli/actions/workflows/release.yml/badge.svg?event=release)
+[![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
+[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 
-- [griffin-cli](#griffin-cli)
-- [Installation](#installation)
+<img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" width="200" />
+
+Griffin is a tool for managing all of your config and supports using the underlying service store's versioning capabilities.  Unlike other tools that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code and tracks these versions as part of your source control.  This has several key benefits:
+
+- 🕵 Changes to config become part of the normal code review process
+- 🔒 Config changes are locked to the code changes they're dependent on
+- 🌄 Follows best practices of [The Twelve-Factor App](https://12factor.net/config) methodology by storing config in the environment separate from the code
+
+
+This effectively decouples your deployments from your config, allowing you to fully automate
+
+- 🐦 Canary deployments
+- 💍 Ring deployments
+- 🛞 Rollbacks
+
+without having to coordinate updating your config.
+
+
+- [🌱 Installation](#-installation)
   - [Homebrew](#homebrew)
   - [Linux](#linux)
     - [apt](#apt)
@@ -16,13 +35,17 @@ griffin-cli
   - [tarballs](#tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
-- [AWS Configuration](#aws-configuration)
-- [Migrating to griffin](#migrating-to-griffin)
+- [💻 Usage](#-usage)
+- [🔢 Multiple Environments](#-multiple-environments)
+- [🚀 Deploying](#-deploying)
+  - [exec](#exec)
+  - [export](#export)
+- [☁ AWS Configuration](#-aws-configuration)
+- [🚛 Migrating to griffin](#-migrating-to-griffin)
   - [Chamber](#chamber)
-  - [Dotenv](#dotenv)
-- [Roadmap](#roadmap)
-- [Usage](#usage)
-- [Commands](#commands)
+  - [dotenv](#dotenv)
+- [🚏 Roadmap](#-roadmap)
+- [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
   - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
   - [`griffin export`](#griffin-export)
@@ -40,15 +63,7 @@ griffin-cli
   - [`griffin update [CHANNEL]`](#griffin-update-channel)
   - [`griffin version`](#griffin-version)
 
-Griffin is a tool for managing all of your config.  Unlike other tools, such as chamber, that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code.  This effectively decouples your deployments from your config, allowing you to fully automate
-
-- Canary deployments
-- Ring deployments
-- Rollbacks
-
-without having to coordinate updating your config.
-
-# Installation
+# 🌱 Installation
 
 If you have Node installed, you can install using `npm`:
 
@@ -154,7 +169,96 @@ FROM griffincli/griffin-cli
 
 Download the executable available on the [release](https://github.com/griffin-cli/griffin-cli/releases) and run it.
 
-# AWS Configuration
+# 💻 Usage
+
+*See the [Commands](#-commands) section below for a full list of commands available.*
+
+First, create your first secret:
+
+```sh
+griffin ssm create --env production -n /griffin-cli/prod/SUPERUSER_PASSWORD
+```
+
+This will prompt you to enter the value for the secret.  Alternatively, you could specify `-v` and enter the value as part of the command, but this will make your secret value available in your terminal history.
+
+Now you can run a program and access the value of `API_KEY`
+
+```sh
+griffin exec --env production -- echo $API_KEY
+```
+
+If you wanted to review the changes made to the parameter over time, you could then run
+
+```sh
+griffin ssm history --env production -n /griffin-cli/prod/SUPERUSER_PASSWORD
+```
+
+This will list all the versions for `/griffin-cli/prod/SUPERUSER_PASSWORD`, including the value and who modified the parameter.
+
+All of these examples leverage griffin's versioning capability; however, not all config should be locked to a specific version.  This limits your ability to make updates to your config as needed.  If your config is not dependent on your code, you can add the `--always-use-latest` (`-l` shorthand) flag when creating, importing, or updating your parameter:
+
+```sh
+griffin ssm import --env demo -n /griffin-cli/demo/API_KEY -l
+```
+
+Similarly, griffin will treat all parameters as required by default and fail when running `export` or `exec` if a required parameter is missing.  To mark a parameter as optional, you can specify the `--optional` flag when creating, importing, or updating your parameter:
+
+```sh
+griffin ssm update -n /griffin-cli/OPTIONAL_VAR --optional
+```
+
+
+# 🔢 Multiple Environments
+
+Multiple environments are supported natively.  Just add the `--env` (`-E` shorthand) flag supported by all commands and specify the environment name.  For example,
+
+```sh
+griffin ssm read --env production /path/var
+```
+
+If the `--env` flag is not specified, `default` is used instead.
+
+# 🚀 Deploying
+
+There are 2 main ways to deploy an app using griffin.  You can use griffin directly using the `exec` command or you can export your config and inject it using whatever method you'd like.
+
+## exec
+
+To run a target command and inject your config into the environment, you can run the `exec` command:
+
+```sh
+griffin exec --env production -- /server
+```
+
+Make sure to replace `/server` with the appropriate command to execute.  Everything after the `--` is passed to the command specified.  For example, `--nodes=3` and `server.exe` are both passed to `startup.sh`
+
+```sh
+griffin exec --env production -- ./startup.sh --nodes=3 server.exe
+```
+
+By default, this method makes any existing environment variables available to the target command.  If you would like to make it so only the config defined in your griffin config file is made available, use `--pristine`:
+
+```sh
+griffin exec --env staging --pristine -- /server
+```
+
+## export
+
+If you would like to export your config and inject it into your environment/app as you see fit, you can do so using `export`:
+
+```sh
+griffin export --env production --format dotenv --output .env
+```
+
+You could then `source` the generated dotenv file:
+
+```sh
+griffin export --env production --format dotenv --output tmp.env
+source tmp.env
+rm tmp.env
+```
+
+# ☁ AWS Configuration
 
 Griffin uses the official [AWS SDK](https://github.com/aws/aws-sdk-js-v3) to access AWS.  To use AWS-backed stores, you must [configure both your credentials and region](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/configuring-the-jssdk.html).
 
@@ -170,7 +274,7 @@ If you're using a named profile, you can use the `AWS_PROFILE` environment varia
 AWS_PROFILE=prod griffin ssm history /my/var
 ```
 
-# Migrating to griffin
+# 🚛 Migrating to griffin
 
 ## Chamber
 
@@ -186,15 +290,15 @@ If you want griffin to behave the same as chamber and always pull the latest val
 griffin ssm import --always-use-latest --allow-missing-value -c chamber-service-1 -c chamber-service-2
 ```
 
-## Dotenv
+## dotenv
 
-Dotenv is another great tool, but you'll likely need a separate tool to manage secrets.  Griffin makes it easy to manage both in the same place.  To move a dotenv file to griffin, just run
+dotenv is another great tool, but you'll likely need a separate tool to manage secrets.  Griffin makes it easy to manage both in the same place.  To move a dotenv file to griffin, just run
 
 ```sh
 griffin ssm import -d ./path/to/.env
 ```
 
-# Roadmap
+# 🚏 Roadmap
 
 Griffin is growing!  We're always looking for contributors and maintainers to help us get to where we're going.  Amongst other things, Griffin is looking to add support for
 
@@ -209,23 +313,9 @@ Griffin is growing!  We're always looking for contributors and maintainers to he
 
 As Griffin continues to grow, we may also refactor into more of a plugin-based architecture so you only have to install what you need.
 
-# Usage
-<!-- usage -->
-```sh-session
-$ npm install -g griffin-cli
-$ griffin COMMAND
-running command...
-$ griffin (--version)
-griffin-cli/0.6.1 linux-x64 node-v18.18.2
-$ griffin --help [COMMAND]
-USAGE
-  $ griffin COMMAND
-...
-```
-<!-- usagestop -->
-
-# Commands
+# 📖 Commands
 <!-- commands -->
+<!-- no toc -->
 * [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
 * [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
 * [`griffin export`](#griffin-export)
