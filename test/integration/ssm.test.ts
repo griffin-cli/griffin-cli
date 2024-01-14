@@ -8,7 +8,7 @@ import resetConfig from '../helpers/reset-config';
 import clearTestScriptOutput from '../helpers/clear-test-script-output';
 import { readFile, rm, stat, unlink, writeFile } from 'fs/promises';
 import addParam from '../helpers/add-param';
-import { ParameterType } from '@aws-sdk/client-ssm';
+import { DeleteParameterCommand, ParameterType, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigFile, Source } from '../../src/config';
 import EnvFile from '../../src/utils/envfile';
 import { resolve } from 'path';
@@ -215,6 +215,60 @@ ${ctx.params.NUMBER}`);
 
           const output = (await readFile('./test-script-output.txt')).toString();
           expect(output.trim()).to.equal(ctx.params.URL);
+        });
+    });
+
+    describe('ssm', () => {
+      const ssmImportTest = ssmTest
+        .add('env', 'test')
+        .add('paramName', () => `/griffin-cli/test/${randomUUID()}`)
+        .add('ssmClient', () => new SSMClient({
+          endpoint: process.env.GRIFFIN_AWS_SSM_ENDPOINT,
+        }))
+        .do(async (ctx) => {
+          await ctx.ssmClient.send(new PutParameterCommand({
+            Name: ctx.paramName,
+            Value: randomUUID(),
+            Type: 'SecureString',
+            Overwrite: true,
+          }));
+        })
+        .finally(async (ctx) => {
+          await ctx.ssmClient.send(new DeleteParameterCommand({
+            Name: ctx.paramName,
+          }));
+        });
+
+      ssmImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', ctx.env, '-n', `/griffin-cli/test/${randomUUID()}`])
+        .exit(1)
+        .it('should log an error if the parameter does not exist', (ctx) => {
+          expect(ctx.stderr.toLowerCase()).to.contain('parameter not found');
+        });
+
+      ssmImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', ctx.env, '-n', ctx.paramName])
+        .commandWithContext((ctx) => ['ssm:import', '--env', ctx.env, '-n', ctx.paramName])
+        .exit(1)
+        .it('should log an error if the parameter has already been imported', (ctx) => {
+          expect(ctx.stderr.toLowerCase()).to.contain('parameter already exists');
+        });
+
+      ssmImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', ctx.env, '-n', ctx.paramName, '--always-use-latest'])
+        .it('should import the parameter without locking the version', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig(ctx.env);
+          console.log(configFile);
+
+          expect(configFile.getParamConfig(Source.SSM, ctx.paramName)).to.exist.and.not.have.property('version');
+        });
+
+      ssmImportTest
+        .commandWithContext((ctx) => ['ssm:import', '--env', ctx.env, '-n', ctx.paramName])
+        .it('should import the parameter', async (ctx) => {
+          const configFile = await ConfigFile.loadConfig(ctx.env);
+
+          expect(configFile.getParamConfig(Source.SSM, ctx.paramName)).to.exist.and.have.property('version').that.equals('1');
         });
     });
 
