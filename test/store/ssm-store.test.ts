@@ -86,6 +86,15 @@ describe('SSMStore', () => {
           })).to.exist.and.have.length(1);
         })
         .it('should not fail if the parameter does not exist')
+
+      ssmStoreTest
+        .add('errorMsg', 'A different type of error.')
+        .do((ctx) => ctx.ssmClient.on(DeleteParameterCommand).rejects(ctx.errorMsg))
+        .it('should rethrow the original error if the error is not a ParameterNotFound exception', async (ctx) => {
+          await expect(ctx.store.delete(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg);
+
+          sinon.assert.calledOnce(ctx.ssmClient.send);
+        });
     });
 
     describe('getEnvVars', () => {
@@ -202,6 +211,10 @@ describe('SSMStore', () => {
     });
 
     describe('getHistory', () => {
+      ssmStoreTest
+        .do((ctx) => ctx.ssmClient.on(GetParameterHistoryCommand).resolves({}))
+        .it('should return an empty array if there are no parameters in the response', async (ctx) => expect(ctx.store.getHistory(ctx.paramName)).to.eventually.deep.equal([]));
+
       ssmStoreTest
         .add('count', 50)
         .do(ctx => ctx.ssmClient.on(
@@ -349,6 +362,27 @@ describe('SSMStore', () => {
         })))
         .do(ctx => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError))
         .it('should throw a ParameterNotFoundError if the parameter could not be found')
+
+      ssmStoreTest
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand, {
+          Name: ctx.paramName,
+        }).resolves({
+          Parameter: {},
+        }))
+        .it('should throw a ParameterNotFoundError if the version is not set', async (ctx) => {
+          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+        });
+
+      ssmStoreTest
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).resolves({}))
+        .it('should throw a ParameterNotFoundError if the parameter is not set', async (ctx) => {
+          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+        });
+
+      ssmStoreTest
+        .add('errorMsg', 'Something bad happened.')
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).rejects(ctx.errorMsg))
+        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
     });
 
     describe('getParamRecord', () => {
@@ -507,6 +541,27 @@ describe('SSMStore', () => {
         })))
         .do(ctx => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterVersionNotFoundError))
         .it('should throw a ParameterVersionNotFoundError if the parameter version does not exist');
+
+      ssmStoreTest
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand, {
+          Name: ctx.paramName,
+        }).resolves({
+          Parameter: {},
+        }))
+        .it('should throw a ParameterNotFoundError if the version is not set', async (ctx) => {
+          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+        });
+
+      ssmStoreTest
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).resolves({}))
+        .it('should throw a ParameterNotFoundError if the parameter is not set', async (ctx) => {
+          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+        });
+
+      ssmStoreTest
+        .add('errorMsg', 'Something bad happened.')
+        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).rejects(ctx.errorMsg))
+        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
     });
 
     describe('writeParam', () => {
