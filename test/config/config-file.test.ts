@@ -160,6 +160,25 @@ describe('ConfigFile', () => {
         .it('should add a new source');
     });
 
+    describe('removeParamConfig', () => {
+      configInstanceTest
+        .it('should delete the param config', (ctx) => {
+          ctx.config.removeParamConfig(ctx.source, ctx.id);
+
+          expect(ctx.config.hasParamConfig(ctx.source, ctx.id));
+        });
+
+      configInstanceTest
+        .it('should not throw an error if the param ID does not exist', (ctx) => {
+          ctx.config.removeParamConfig(ctx.source, randomUUID());
+        });
+
+      configInstanceTest
+        .it('should not throw an error if the source does not exist', (ctx) => {
+          ctx.config.removeParamConfig(randomUUID() as any, randomUUID());
+        });
+    });
+
     describe('save', () => {
       configInstanceTest
         .do((ctx) => ctx.config.save())

@@ -31,6 +31,13 @@ describe('SSM', () => {
     .finally(() => clearSSM());
 
   ssmTest
+    .commandWithContext((ctx) => ['export', '--env', 'inv@lid', '--format', 'dotenv'])
+    .exit(1)
+    .it('should print an error message if the env is invalid', (ctx) => {
+      expect(ctx.stderr).to.contain('Environment must only contain alphanumeric characters and "_" or "-".');
+    });
+
+  ssmTest
     .add('paramName', () => '/test/var')
     .add('paramValue', () => randomUUID())
     .commandWithContext((ctx) => ['ssm:create', '--env', 'test', '--name', ctx.paramName, '--value', ctx.paramValue])
