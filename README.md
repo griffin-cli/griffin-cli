@@ -498,10 +498,10 @@ FLAGS
                               without the prefix
   -l, --always-use-latest     do not lock the version, instead always pull the latest version; if false, the latest
                               version is pulled from Parameter Store and set as the current version; to use a different
-                              version, use --use-version instead
+                              version, use --version instead
   -m, --optional   do not fail when running exec or exporting variables if this parameter does not exist
   -n, --name=<value>          (required) the name of the parameter
-  -v, --use-version=<value>   lock the version of the parameter to this version
+  -v, --version=<value>   lock the version of the parameter to this version
       --cwd=<value>           the directory where griffin's config file is located, both relative and absolute paths are
                               supported; default: .
       --env=<value>           [default: default] the name of the environment (e.g. prod, qa, staging), this can be any

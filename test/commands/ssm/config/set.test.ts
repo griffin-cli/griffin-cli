@@ -48,8 +48,8 @@ describe('config:set', () => {
 
   setConfigTest
     .add('updatedVersion', (ctx) => `${parseInt(ctx.paramConfig.version ?? '0', 10) + 99}`)
-    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--use-version', ctx.updatedVersion])
-    .it('should lock the version if --use-version is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--version', ctx.updatedVersion])
+    .it('should lock the version if --version is specified', (ctx) => {
       Sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, Sinon.match.has('version', ctx.updatedVersion));
     });
 

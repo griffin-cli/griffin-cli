@@ -65,7 +65,7 @@ export default class SSMCreate extends SSMBaseCommand<typeof SSMCreate> {
       helpGroup: 'GRIFFIN CONFIG',
     }),
     optional: Flags.boolean({
-      char: 'm',
+      char: 'o',
       description: 'do not fail when running exec or exporting variables if this parameter does not exist',
       helpGroup: 'GRIFFIN CONFIG',
     }),

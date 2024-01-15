@@ -28,7 +28,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       description: 'do not lock the version, instead always pull the latest version',
     }),
     optional: Flags.boolean({
-      char: 'm',
+      char: 'o',
       description: 'do not fail when running exec or exporting variables if parameter does not exist',
     }),
     quiet: Flags.boolean({
