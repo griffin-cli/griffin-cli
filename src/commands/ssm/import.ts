@@ -19,7 +19,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     '<%= config.bin %> <%= command.id %> --name /example/var',
     '<%= config.bin %> <%= command.id %> --from-dotenv .env --prefix /example/path',
     '<%= config.bin %> <%= command.id %> --chamber-service /example',
-    '<%= config.bin %> <%= command.id %> --chamber-service /example --allow-missing-value --always-use-latest',
+    '<%= config.bin %> <%= command.id %> --chamber-service /example --optional --always-use-latest',
   ];
 
   static flags = {
@@ -27,7 +27,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       char: 'l',
       description: 'do not lock the version, instead always pull the latest version',
     }),
-    'allow-missing-value': Flags.boolean({
+    optional: Flags.boolean({
       char: 'm',
       description: 'do not fail when running exec or exporting variables if parameter does not exist',
     }),
@@ -110,7 +110,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
     this.configFile.setParamConfig(Source.SSM, this.flags.name!, {
       envVarName: this.flags['env-var-name'] || SSMStore.getEnvVarNameFromParamName(this.flags.name!),
       version,
-      allowMissingValue: this.flags['allow-missing-value'],
+      allowMissingValue: this.flags.optional,
     });
 
     await this.configFile.save();
@@ -138,7 +138,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
       .forEach((param) => this.configFile.setParamConfig(Source.SSM, param.name, {
         envVarName: SSMStore.getEnvVarNameFromParamName(param.name),
         version: !this.flags['always-use-latest'] ? param.version : undefined,
-        allowMissingValue: this.flags['allow-missing-value'],
+        allowMissingValue: this.flags.optional,
       }));
 
     await this.configFile.save();
@@ -190,7 +190,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
               this.configFile.setParamConfig(Source.SSM, name, {
                 envVarName,
                 version: !this.flags['always-use-latest'] ? updatedVersion : undefined,
-                allowMissingValue: this.flags['allow-missing-value'],
+                allowMissingValue: this.flags.optional,
               });
             } catch (err) {
               failureCount += 1;

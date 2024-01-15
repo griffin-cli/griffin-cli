@@ -22,6 +22,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
     env: Flags.string({
       description: 'the name of the environment (e.g. prod, qa, staging), this can be any alphanumeric string; default: default',
       default: 'default',
+      char: 'E',
     }),
     cwd: Flags.string({
       description: 'the directory where griffin\'s config file is located, both relative and absolute paths are supported; default: .',

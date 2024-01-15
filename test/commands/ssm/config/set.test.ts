@@ -34,15 +34,15 @@ describe('config:set', () => {
 
   setConfigTest
     .do((ctx) => ctx.paramConfig.allowMissingValue = false)
-    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--allow-missing-value'])
-    .it('should set allow missing value to true if --allow-missing-value is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--optional'])
+    .it('should set allow missing value to true if --optional is specified', (ctx) => {
       Sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, Sinon.match.has('allowMissingValue', true));
     });
 
   setConfigTest
     .do((ctx) => ctx.paramConfig.allowMissingValue = true)
-    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--no-allow-missing-value'])
-    .it('should set allow missing value to false if --no-allow-missing-value is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:config:set', '--name', ctx.name, '--no-optional'])
+    .it('should set allow missing value to false if --no-optional is specified', (ctx) => {
       Sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, Sinon.match.has('allowMissingValue', false));
     });
 

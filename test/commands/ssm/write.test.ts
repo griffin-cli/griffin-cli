@@ -210,8 +210,8 @@ describe('ssm:write', () => {
     });
 
   happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--allow-missing-value'])
-    .it('should set allowMissingValue to true in the config if --allow-missing-value is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--optional'])
+    .it('should set allowMissingValue to true in the config if --optional is specified', (ctx) => {
       sinon.assert.calledOnce(ctx.configFile.setParamConfig);
       sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
     });
@@ -229,8 +229,8 @@ describe('ssm:write', () => {
     .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({}))
     .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
     .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--allow-missing-value'])
-    .it('should set allowMissingValue to true for an existing parameter if --allow-missing-value is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--optional'])
+    .it('should set allowMissingValue to true for an existing parameter if --optional is specified', (ctx) => {
       sinon.assert.calledOnce(ctx.configFile.setParamConfig);
       sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
     });
@@ -244,7 +244,7 @@ describe('ssm:write', () => {
     .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
     .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
     .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should use the existing value for allowMissingValue if the parameter already exists and --allow-missing-value is not set', (ctx) => {
+    .it('should use the existing value for allowMissingValue if the parameter already exists and --optional is not set', (ctx) => {
       sinon.assert.calledOnce(ctx.configFile.setParamConfig);
       sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
     });

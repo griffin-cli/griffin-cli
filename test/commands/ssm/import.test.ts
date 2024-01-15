@@ -167,8 +167,8 @@ describe('ssm:import', () => {
       });
 
     happyPathDotEnvTest
-      .commandWithContext((ctx) => ['ssm:import', '--from-dotenv', ctx.dotenvFilename, '--prefix', ctx.prefix, '--allow-missing-value'])
-      .it('should allow missing values if --allow-missing-value is specified', (ctx) => {
+      .commandWithContext((ctx) => ['ssm:import', '--from-dotenv', ctx.dotenvFilename, '--prefix', ctx.prefix, '--optional'])
+      .it('should allow missing values if --optional is specified', (ctx) => {
         Sinon.assert.callCount(ctx.configFile.setParamConfig, Object.keys(ctx.jsonConfig).length);
         Sinon.assert.alwaysCalledWith(ctx.configFile.setParamConfig, Source.SSM, Sinon.match.string, Sinon.match.has('allowMissingValue', true));
       });

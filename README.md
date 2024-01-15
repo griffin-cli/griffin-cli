@@ -8,7 +8,8 @@ griffin-cli
 [![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 
-<img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" width="200" />
+<div style='display: block; margin-bottom: 50px'>
+  <img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" style="max-height: 100%; max-width: 500px;" />
 
 Griffin is a tool for managing all of your config and supports using the underlying service store's versioning capabilities.  Unlike other tools that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code and tracks these versions as part of your source control.  This has several key benefits:
 
@@ -24,8 +25,10 @@ This effectively decouples your deployments from your config, allowing you to fu
 - 🛞 Rollbacks
 
 without having to coordinate updating your config.
+</div>
 
-
+<!-- omit from toc -->
+# Table of Contents
 - [🌱 Installation](#-installation)
   - [Homebrew](#homebrew)
   - [Linux](#linux)
@@ -204,7 +207,7 @@ griffin ssm import --env demo -n /griffin-cli/demo/API_KEY -l
 Similarly, griffin will treat all parameters as required by default and fail when running `export` or `exec` if a required parameter is missing.  To mark a parameter as optional, you can specify the `--optional` flag when creating, importing, or updating your parameter:
 
 ```sh
-griffin ssm update -n /griffin-cli/OPTIONAL_VAR --optional
+griffin ssm config set -n /griffin-cli/OPTIONAL_VAR --optional
 ```
 
 
@@ -287,7 +290,7 @@ griffin ssm import -c chamber-service-1 -c chamber-service-2
 If you want griffin to behave the same as chamber and always pull the latest value without locking the version and ignoring missing values, use this command instead
 
 ```sh
-griffin ssm import --always-use-latest --allow-missing-value -c chamber-service-1 -c chamber-service-2
+griffin ssm import --always-use-latest --optional -c chamber-service-1 -c chamber-service-2
 ```
 
 ## dotenv
@@ -489,7 +492,7 @@ FLAGS
   -l, --always-use-latest     do not lock the version, instead always pull the latest version; if false, the latest
                               version is pulled from Parameter Store and set as the current version; to use a different
                               version, use --use-version instead
-  -m, --allow-missing-value   do not fail when running exec or exporting variables if this parameter does not exist
+  -m, --optional   do not fail when running exec or exporting variables if this parameter does not exist
   -n, --name=<value>          (required) the name of the parameter
   -v, --use-version=<value>   lock the version of the parameter to this version
       --cwd=<value>           the directory where griffin's config file is located, both relative and absolute paths are
@@ -503,7 +506,7 @@ DESCRIPTION
 EXAMPLES
   $ griffin ssm config set --name /example/var --version 5
 
-  $ griffin ssm config set --name /example/var --no-allow-missing-value
+  $ griffin ssm config set --name /example/var --no-optional
 ```
 
 _See code: [src/commands/ssm/config/set.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.1/src/commands/ssm/config/set.ts)_
@@ -535,7 +538,7 @@ GRIFFIN CONFIG FLAGS
                               should be assigned the value of this parameter; default: normalized parameter name,
                               without the prefix
   -l, --always-use-latest     do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value   do not fail when running exec or exporting variables if this parameter does not exist
+  -m, --optional   do not fail when running exec or exporting variables if this parameter does not exist
 
 VALUE INPUT FLAGS
   -l, --read-single-line  if reading from stdin, stop reading at \n
@@ -626,7 +629,7 @@ USAGE
 
 FLAGS
   -l, --always-use-latest    do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value  do not fail when running exec or exporting variables if parameter does not exist
+  -m, --optional  do not fail when running exec or exporting variables if parameter does not exist
   -q, --quiet                quiet (no output)
       --cwd=<value>          the directory where griffin's config file is located, both relative and absolute paths are
                              supported; default: .
@@ -658,7 +661,7 @@ EXAMPLES
 
   $ griffin ssm import --chamber-service /example
 
-  $ griffin ssm import --chamber-service /example --allow-missing-value --always-use-latest
+  $ griffin ssm import --chamber-service /example --optional --always-use-latest
 ```
 
 _See code: [src/commands/ssm/import.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.1/src/commands/ssm/import.ts)_
@@ -794,7 +797,7 @@ GRIFFIN CONFIG FLAGS
                               should be assigned the value of this parameter; default: normalized parameter name,
                               without the prefix
   -l, --always-use-latest     do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value   do not fail when running exec or exporting variables if this parameter does not exist
+  -m, --optional   do not fail when running exec or exporting variables if this parameter does not exist
 
 VALUE INPUT FLAGS
   -l, --read-single-line  if reading from stdin, stop reading at \n
