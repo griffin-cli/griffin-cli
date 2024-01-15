@@ -63,7 +63,7 @@ export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
       description: 'do not lock the version, instead always pull the latest version',
       helpGroup: 'GRIFFIN CONFIG',
     }),
-    'optional': Flags.boolean({
+    optional: Flags.boolean({
       char: 'm',
       description: 'do not fail when running exec or exporting variables if this parameter does not exist',
       helpGroup: 'GRIFFIN CONFIG',
@@ -106,12 +106,12 @@ export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
         }
 
         paramConfig.envVarName = envVarName;
-        paramConfig.allowMissingValue = this.flags['optional'];
+        paramConfig.allowMissingValue = this.flags.optional;
       } else {
         paramConfig = this.configFile.getParamConfig(Source.SSM, this.flags.name) || {};
 
         paramConfig.envVarName = this.flags['env-var-name'] || paramConfig.envVarName;
-        paramConfig.allowMissingValue = this.flags['optional'] ?? paramConfig.allowMissingValue;
+        paramConfig.allowMissingValue = this.flags.optional ?? paramConfig.allowMissingValue;
       }
 
       paramConfig.version = this.flags['always-use-latest'] ? undefined : updatedVersion;
