@@ -8,7 +8,7 @@ griffin-cli
 [![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 
-<img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" width="500" />
+<img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" width="350" />
 
 Griffin is a tool for managing all of your config and supports using the underlying service store's versioning capabilities.  Unlike other tools that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code and tracks these versions as part of your source control.  This has several key benefits:
 
