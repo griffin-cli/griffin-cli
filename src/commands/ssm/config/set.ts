@@ -8,7 +8,7 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
 
   static examples = [
     '<%= config.bin %> <%= command.id %> --name /example/var --version 5',
-    '<%= config.bin %> <%= command.id %> --name /example/var --no-allow-missing-value',
+    '<%= config.bin %> <%= command.id %> --name /example/var --no-optional',
   ];
 
   static flags = {
@@ -24,15 +24,15 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
     'always-use-latest': Flags.boolean({
       char: 'l',
       allowNo: true,
-      description: 'do not lock the version, instead always pull the latest version; if false, the latest version is pulled from Parameter Store and set as the current version; to use a different version, use --use-version instead',
-      exclusive: ['use-version'],
+      description: 'do not lock the version, instead always pull the latest version; if false, the latest version is pulled from Parameter Store and set as the current version; to use a different version, use --version instead',
+      exclusive: ['version'],
     }),
-    'allow-missing-value': Flags.boolean({
-      char: 'm',
+    optional: Flags.boolean({
+      char: 'o',
       allowNo: true,
       description: 'do not fail when running exec or exporting variables if this parameter does not exist',
     }),
-    'use-version': Flags.string({
+    version: Flags.string({
       char: 'v',
       description: 'lock the version of the parameter to this version',
       exclusive: ['always-use-latest'],
@@ -44,7 +44,7 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
       ...this.configFile.getParamConfig(Source.SSM, this.flags.name),
     };
 
-    paramConfig.allowMissingValue = this.flags['allow-missing-value'] ?? paramConfig.allowMissingValue;
+    paramConfig.allowMissingValue = this.flags.optional ?? paramConfig.allowMissingValue;
     paramConfig.envVarName = this.flags['env-var-name'] || paramConfig.envVarName;
     paramConfig.version = await this.getVersionValue(paramConfig);
 
@@ -53,8 +53,8 @@ export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
   }
 
   private async getVersionValue(paramConfig: ParamConfig): Promise<string | undefined> {
-    if (this.flags['use-version']) {
-      return this.flags['use-version'];
+    if (this.flags.version) {
+      return this.flags.version;
     }
 
     const alwaysUseLatest = this.flags['always-use-latest'];

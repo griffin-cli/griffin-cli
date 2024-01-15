@@ -309,7 +309,7 @@ ${ctx.params.NUMBER}`);
 
       chamberImportTest
         .add('updatedParamValue', randomUUID())
-        .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName, '--always-use-latest', '--allow-missing-value'])
+        .commandWithContext((ctx) => ['ssm:import', '-c', ctx.serviceName, '-c', ctx.serviceEnvName, '--always-use-latest', '--optional'])
         .do((ctx) => addParam({
           name: ctx.params[2].name,
           value: ctx.updatedParamValue,

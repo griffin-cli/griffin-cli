@@ -1,13 +1,33 @@
+<!-- omit from toc -->
 griffin-cli
 =================
 
-[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
+[![NPM Version](https://img.shields.io/npm/v/griffin-cli)](https://www.npmjs.com/package/griffin-cli)
 [![codecov](https://codecov.io/github/griffin-cli/griffin-cli/graph/badge.svg?token=6L9NEI261E)](https://codecov.io/github/griffin-cli/griffin-cli)
 ![Release Workflow](https://github.com/griffin-cli/griffin-cli/actions/workflows/release.yml/badge.svg?event=release)
+[![GitHub license](https://img.shields.io/github/license/griffin-cli/griffin-cli)](https://github.com/griffin-cli/griffin-cli/blob/main/LICENSE)
+[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 
-- [griffin-cli](#griffin-cli)
-- [Installation](#installation)
+<img src="https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/assets/logo.svg" alt="griffin" align="right" width="350" />
+
+Griffin is a tool for managing all of your config and supports using the underlying service store's versioning capabilities.  Unlike other tools that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code and tracks these versions as part of your source control.  This has several key benefits:
+
+- 🕵 Changes to config become part of the normal code review process
+- 🔒 Config changes are locked to the code changes they're dependent on
+- 🌄 Follows best practices of [The Twelve-Factor App](https://12factor.net/config) methodology by storing config in the environment separate from the code
+
+
+This effectively decouples your deployments from your config, allowing you to fully automate
+
+- 🐦 Canary deployments
+- 💍 Ring deployments
+- 🛞 Rollbacks
+
+without having to coordinate updating your config.
+
+<!-- omit from toc -->
+# Table of Contents
+- [🌱 Installation](#-installation)
   - [Homebrew](#homebrew)
   - [Linux](#linux)
     - [apt](#apt)
@@ -16,13 +36,18 @@ griffin-cli
   - [tarballs](#tarballs)
   - [Docker](#docker)
   - [Windows](#windows)
-- [AWS Configuration](#aws-configuration)
-- [Migrating to griffin](#migrating-to-griffin)
+- [💻 Usage](#-usage)
+- [🔢 Multiple Environments](#-multiple-environments)
+- [🚀 Deploying](#-deploying)
+  - [exec](#exec)
+  - [export](#export)
+- [☁ AWS Configuration](#-aws-configuration)
+- [🚛 Migrating to griffin](#-migrating-to-griffin)
   - [Chamber](#chamber)
-  - [Dotenv](#dotenv)
-- [Roadmap](#roadmap)
-- [Usage](#usage)
-- [Commands](#commands)
+  - [dotenv](#dotenv)
+  - [SSM](#ssm)
+- [🚏 Roadmap](#-roadmap)
+- [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
   - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
   - [`griffin export`](#griffin-export)
@@ -40,15 +65,7 @@ griffin-cli
   - [`griffin update [CHANNEL]`](#griffin-update-channel)
   - [`griffin version`](#griffin-version)
 
-Griffin is a tool for managing all of your config.  Unlike other tools, such as chamber, that just pull the latest version of parameters from a secret service, Griffin allows you to lock a specific version of your config to a specific version of your code.  This effectively decouples your deployments from your config, allowing you to fully automate
-
-- Canary deployments
-- Ring deployments
-- Rollbacks
-
-without having to coordinate updating your config.
-
-# Installation
+# 🌱 Installation
 
 If you have Node installed, you can install using `npm`:
 
@@ -154,7 +171,96 @@ FROM griffincli/griffin-cli
 
 Download the executable available on the [release](https://github.com/griffin-cli/griffin-cli/releases) and run it.
 
-# AWS Configuration
+# 💻 Usage
+
+*See the [Commands](#-commands) section below for a full list of commands available.*
+
+First, create your first secret:
+
+```sh
+griffin ssm create --env production -n /griffin-cli/prod/SUPERUSER_PASSWORD
+```
+
+This will prompt you to enter the value for the secret.  Alternatively, you could specify `-v` and enter the value as part of the command, but this will make your secret value available in your terminal history.
+
+Now you can run a program and access the value of `API_KEY`
+
+```sh
+griffin exec --env production -- echo $API_KEY
+```
+
+If you wanted to review the changes made to the parameter over time, you could then run
+
+```sh
+griffin ssm history --env production -n /griffin-cli/prod/SUPERUSER_PASSWORD
+```
+
+This will list all the versions for `/griffin-cli/prod/SUPERUSER_PASSWORD`, including the value and who modified the parameter.
+
+All of these examples leverage griffin's versioning capability; however, not all config should be locked to a specific version.  This limits your ability to make updates to your config as needed.  If your config is not dependent on your code, you can add the `--always-use-latest` (`-l` shorthand) flag when creating, importing, or updating your parameter:
+
+```sh
+griffin ssm import --env demo -n /griffin-cli/demo/API_KEY -l
+```
+
+Similarly, griffin will treat all parameters as required by default and fail when running `export` or `exec` if a required parameter is missing.  To mark a parameter as optional, you can specify the `--optional` flag when creating, importing, or updating your parameter:
+
+```sh
+griffin ssm config set -n /griffin-cli/OPTIONAL_VAR --optional
+```
+
+
+# 🔢 Multiple Environments
+
+Multiple environments are supported natively.  Just add the `--env` (`-E` shorthand) flag supported by all commands and specify the environment name.  For example,
+
+```sh
+griffin ssm read --env production /path/var
+```
+
+If the `--env` flag is not specified, `default` is used instead.
+
+# 🚀 Deploying
+
+There are 2 main ways to deploy an app using griffin.  You can use griffin directly using the `exec` command or you can export your config and inject it using whatever method you'd like.
+
+## exec
+
+To run a target command and inject your config into the environment, you can run the `exec` command:
+
+```sh
+griffin exec --env production -- /server
+```
+
+Make sure to replace `/server` with the appropriate command to execute.  Everything after the `--` is passed to the command specified.  For example, `--nodes=3` and `server.exe` are both passed to `startup.sh`
+
+```sh
+griffin exec --env production -- ./startup.sh --nodes=3 server.exe
+```
+
+By default, this method makes any existing environment variables available to the target command.  If you would like to make it so only the config defined in your griffin config file is made available, use `--pristine`:
+
+```sh
+griffin exec --env staging --pristine -- /server
+```
+
+## export
+
+If you would like to export your config and inject it into your environment/app as you see fit, you can do so using `export`:
+
+```sh
+griffin export --env production --format dotenv --output .env
+```
+
+You could then `source` the generated dotenv file:
+
+```sh
+griffin export --env production --format dotenv --output tmp.env
+source tmp.env
+rm tmp.env
+```
+
+# ☁ AWS Configuration
 
 Griffin uses the official [AWS SDK](https://github.com/aws/aws-sdk-js-v3) to access AWS.  To use AWS-backed stores, you must [configure both your credentials and region](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/configuring-the-jssdk.html).
 
@@ -170,7 +276,7 @@ If you're using a named profile, you can use the `AWS_PROFILE` environment varia
 AWS_PROFILE=prod griffin ssm history /my/var
 ```
 
-# Migrating to griffin
+# 🚛 Migrating to griffin
 
 ## Chamber
 
@@ -183,18 +289,26 @@ griffin ssm import -c chamber-service-1 -c chamber-service-2
 If you want griffin to behave the same as chamber and always pull the latest value without locking the version and ignoring missing values, use this command instead
 
 ```sh
-griffin ssm import --always-use-latest --allow-missing-value -c chamber-service-1 -c chamber-service-2
+griffin ssm import --always-use-latest --optional -c chamber-service-1 -c chamber-service-2
 ```
 
-## Dotenv
+## dotenv
 
-Dotenv is another great tool, but you'll likely need a separate tool to manage secrets.  Griffin makes it easy to manage both in the same place.  To move a dotenv file to griffin, just run
+dotenv is another great tool, but you'll likely need a separate tool to manage secrets.  Griffin makes it easy to manage both in the same place.  To move a dotenv file to griffin, just run
 
 ```sh
 griffin ssm import -d ./path/to/.env
 ```
 
-# Roadmap
+## SSM
+
+To import your config directly from SSM, use the `--name` flag:
+
+```sh
+griffin ssm import -n /path/var
+```
+
+# 🚏 Roadmap
 
 Griffin is growing!  We're always looking for contributors and maintainers to help us get to where we're going.  Amongst other things, Griffin is looking to add support for
 
@@ -209,22 +323,7 @@ Griffin is growing!  We're always looking for contributors and maintainers to he
 
 As Griffin continues to grow, we may also refactor into more of a plugin-based architecture so you only have to install what you need.
 
-# Usage
-<!-- usage -->
-```sh-session
-$ npm install -g griffin-cli
-$ griffin COMMAND
-running command...
-$ griffin (--version)
-griffin-cli/0.6.2 linux-x64 node-v18.18.2
-$ griffin --help [COMMAND]
-USAGE
-  $ griffin COMMAND
-...
-```
-<!-- usagestop -->
-
-# Commands
+# 📖 Commands
 <!-- commands -->
 * [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
 * [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
@@ -280,18 +379,18 @@ Execute a command, injecting config into the environment.
 
 ```
 USAGE
-  $ griffin exec COMMAND [ARGS] [--env <value>] [--cwd <value>] [-p]
+  $ griffin exec COMMAND [ARGS] [-E <value>] [--cwd <value>] [-p]
 
 ARGUMENTS
   COMMAND  the command to execute
   ARGS
 
 FLAGS
+  -E, --env=<value>  [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                     alphanumeric string; default: default
   -p, --pristine     only use config managed by griffin; do not inherit existing environment variables
       --cwd=<value>  the directory where griffin's config file is located, both relative and absolute paths are
                      supported; default: .
-      --env=<value>  [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                     alphanumeric string; default: default
 
 DESCRIPTION
   Execute a command, injecting config into the environment.
@@ -310,16 +409,16 @@ Export parameters in the specified format.
 
 ```
 USAGE
-  $ griffin export [--env <value>] [--cwd <value>] [-f json|dotenv|yaml|csv] [-o <value>]
+  $ griffin export [-E <value>] [--cwd <value>] [-f json|dotenv|yaml|csv] [-o <value>]
 
 FLAGS
+  -E, --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                         alphanumeric string; default: default
   -f, --format=<option>  [default: json] output format
                          <options: json|dotenv|yaml|csv>
   -o, --output=<value>   output file; if not specified, prints to stdout
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are
                          supported; default: .
-      --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                         alphanumeric string; default: default
 
 DESCRIPTION
   Export parameters in the specified format.
@@ -360,17 +459,17 @@ Get the config value for a parameter tracked by griffin.
 
 ```
 USAGE
-  $ griffin ssm config get -n <value> [--env <value>] [--cwd <value>] [-c version|envVarName|allowMissingValue] [-a]
+  $ griffin ssm config get -n <value> [-E <value>] [--cwd <value>] [-c version|envVarName|allowMissingValue] [-a]
 
 FLAGS
+  -E, --env=<value>           [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                              alphanumeric string; default: default
   -a, --all                   show the entire config for the parameter
   -c, --config-name=<option>  the name of the config option
                               <options: version|envVarName|allowMissingValue>
   -n, --name=<value>          (required) the name of the parameter
       --cwd=<value>           the directory where griffin's config file is located, both relative and absolute paths are
                               supported; default: .
-      --env=<value>           [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                              alphanumeric string; default: default
 
 DESCRIPTION
   Get the config value for a parameter tracked by griffin.
@@ -389,22 +488,22 @@ Set the config value for a parameter.
 
 ```
 USAGE
-  $ griffin ssm config set -n <value> [--env <value>] [--cwd <value>] [-e <value>] [-l | -v <value>] [-m]
+  $ griffin ssm config set -n <value> [-E <value>] [--cwd <value>] [-e <value>] [-l | -v <value>] [-o]
 
 FLAGS
-  -e, --env-var-name=<value>      if this parameter does not exist, specifies the name of the environment variable that
-                                  should be assigned the value of this parameter; default: normalized parameter name,
-                                  without the prefix
-  -l, --[no-]always-use-latest    do not lock the version, instead always pull the latest version; if false, the latest
-                                  version is pulled from Parameter Store and set as the current version; to use a
-                                  different version, use --use-version instead
-  -m, --[no-]allow-missing-value  do not fail when running exec or exporting variables if this parameter does not exist
-  -n, --name=<value>              (required) the name of the parameter
-  -v, --use-version=<value>       lock the version of the parameter to this version
-      --cwd=<value>               the directory where griffin's config file is located, both relative and absolute paths
-                                  are supported; default: .
-      --env=<value>               [default: default] the name of the environment (e.g. prod, qa, staging), this can be
-                                  any alphanumeric string; default: default
+  -E, --env=<value>             [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                                alphanumeric string; default: default
+  -e, --env-var-name=<value>    if this parameter does not exist, specifies the name of the environment variable that
+                                should be assigned the value of this parameter; default: normalized parameter name,
+                                without the prefix
+  -l, --[no-]always-use-latest  do not lock the version, instead always pull the latest version; if false, the latest
+                                version is pulled from Parameter Store and set as the current version; to use a
+                                different version, use --version instead
+  -n, --name=<value>            (required) the name of the parameter
+  -o, --[no-]optional           do not fail when running exec or exporting variables if this parameter does not exist
+  -v, --version=<value>         lock the version of the parameter to this version
+      --cwd=<value>             the directory where griffin's config file is located, both relative and absolute paths
+                                are supported; default: .
 
 DESCRIPTION
   Set the config value for a parameter.
@@ -412,7 +511,7 @@ DESCRIPTION
 EXAMPLES
   $ griffin ssm config set --name /example/var --version 5
 
-  $ griffin ssm config set --name /example/var --no-allow-missing-value
+  $ griffin ssm config set --name /example/var --no-optional
 ```
 
 _See code: [src/commands/ssm/config/set.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.2/src/commands/ssm/config/set.ts)_
@@ -423,15 +522,15 @@ Create a new a parameter in Parameter Store.
 
 ```
 USAGE
-  $ griffin ssm create -n <value> [--env <value>] [--cwd <value>] [-d <value>] [-t
-    SecureString|String|StringList] [-v <value> | -l | --from-stdin] [-e <value>] [-l] [-m]
+  $ griffin ssm create -n <value> [-E <value>] [--cwd <value>] [-d <value>] [-t SecureString|String|StringList]
+    [-v <value> | -l | --from-stdin] [-e <value>] [-l] [-o]
 
 FLAGS
+  -E, --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                      alphanumeric string; default: default
   -n, --name=<value>  (required) the name of the parameter
       --cwd=<value>   the directory where griffin's config file is located, both relative and absolute paths are
                       supported; default: .
-      --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                      alphanumeric string; default: default
 
 SSM CONFIG FLAGS
   -d, --description=<value>  the description for the parameter in Parameter Store
@@ -444,7 +543,7 @@ GRIFFIN CONFIG FLAGS
                               should be assigned the value of this parameter; default: normalized parameter name,
                               without the prefix
   -l, --always-use-latest     do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value   do not fail when running exec or exporting variables if this parameter does not exist
+  -o, --optional              do not fail when running exec or exporting variables if this parameter does not exist
 
 VALUE INPUT FLAGS
   -l, --read-single-line  if reading from stdin, stop reading at \n
@@ -473,14 +572,14 @@ Permanently delete a parameter from Parameter Store and remove it from tracking.
 
 ```
 USAGE
-  $ griffin ssm delete -n <value> [--env <value>] [--cwd <value>]
+  $ griffin ssm delete -n <value> [-E <value>] [--cwd <value>]
 
 FLAGS
+  -E, --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                      alphanumeric string; default: default
   -n, --name=<value>  (required) the name of the parameter
       --cwd=<value>   the directory where griffin's config file is located, both relative and absolute paths are
                       supported; default: .
-      --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                      alphanumeric string; default: default
 
 DESCRIPTION
   Permanently delete a parameter from Parameter Store and remove it from tracking.
@@ -497,17 +596,17 @@ View the history of a parameter.
 
 ```
 USAGE
-  $ griffin ssm history -n <value> [--env <value>] [--cwd <value>] [--columns <value> | ] [--sort <value>]
-    [--filter <value>] [-x] [--no-header | [--output csv|json|yaml | --no-truncate]]
+  $ griffin ssm history -n <value> [-E <value>] [--cwd <value>] [--columns <value> | ] [--sort <value>] [--filter
+    <value>] [-x] [--no-header | [--output csv|json|yaml | --no-truncate]]
 
 FLAGS
+  -E, --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                         alphanumeric string; default: default
   -n, --name=<value>     (required) the name of the parameter
   -x, --extended         show extra columns
       --columns=<value>  only show provided columns (comma-separated)
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are
                          supported; default: .
-      --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                         alphanumeric string; default: default
       --filter=<value>   filter property by partial string matching, ex: name=foo
       --no-header        hide table header from output
       --no-truncate      do not truncate output to fit screen
@@ -530,17 +629,17 @@ Import a parameter from Parameter Store or another config source.
 
 ```
 USAGE
-  $ griffin ssm import [--env <value>] [--cwd <value>] [-l] [-m] [-q] [-e <value> -n <value>] [-c <value>] [-t
+  $ griffin ssm import [-E <value>] [--cwd <value>] [-l] [-o] [-q] [-e <value> -n <value>] [-c <value>] [-t
     SecureString|String|StringList [-d <value> --prefix <value>]] [--overwrite ]
 
 FLAGS
-  -l, --always-use-latest    do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value  do not fail when running exec or exporting variables if parameter does not exist
-  -q, --quiet                quiet (no output)
-      --cwd=<value>          the directory where griffin's config file is located, both relative and absolute paths are
-                             supported; default: .
-      --env=<value>          [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                             alphanumeric string; default: default
+  -E, --env=<value>        [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                           alphanumeric string; default: default
+  -l, --always-use-latest  do not lock the version, instead always pull the latest version
+  -o, --optional           do not fail when running exec or exporting variables if parameter does not exist
+  -q, --quiet              quiet (no output)
+      --cwd=<value>        the directory where griffin's config file is located, both relative and absolute paths are
+                           supported; default: .
 
 CHAMBER FLAGS
   -c, --chamber-service=<value>...  import all parameters using this chamber service prefix
@@ -567,7 +666,7 @@ EXAMPLES
 
   $ griffin ssm import --chamber-service /example
 
-  $ griffin ssm import --chamber-service /example --allow-missing-value --always-use-latest
+  $ griffin ssm import --chamber-service /example --optional --always-use-latest
 ```
 
 _See code: [src/commands/ssm/import.ts](https://github.com/griffin-cli/griffin-cli/blob/v0.6.2/src/commands/ssm/import.ts)_
@@ -578,10 +677,12 @@ Read a parameter from Parameter Store.
 
 ```
 USAGE
-  $ griffin ssm read -n <value> [--env <value>] [--cwd <value>] [-v <value> | -l] [-q] [--columns <value> | ]
+  $ griffin ssm read -n <value> [-E <value>] [--cwd <value>] [-v <value> | -l] [-q] [--columns <value> | ]
     [--sort <value>] [--filter <value>] [-x] [--no-header | [--output csv|json|yaml | --no-truncate]]
 
 FLAGS
+  -E, --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                         alphanumeric string; default: default
   -l, --latest           read the latest version
   -n, --name=<value>     (required) the name of the parameter
   -q, --quiet            print only the parameter value
@@ -590,8 +691,6 @@ FLAGS
       --columns=<value>  only show provided columns (comma-separated)
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are
                          supported; default: .
-      --env=<value>      [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                         alphanumeric string; default: default
       --filter=<value>   filter property by partial string matching, ex: name=foo
       --no-header        hide table header from output
       --no-truncate      do not truncate output to fit screen
@@ -618,14 +717,14 @@ Remove a parameter without deleting it from Parameter Store.
 
 ```
 USAGE
-  $ griffin ssm remove -n <value> [--env <value>] [--cwd <value>]
+  $ griffin ssm remove -n <value> [-E <value>] [--cwd <value>]
 
 FLAGS
+  -E, --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                      alphanumeric string; default: default
   -n, --name=<value>  (required) the name of the parameter
       --cwd=<value>   the directory where griffin's config file is located, both relative and absolute paths are
                       supported; default: .
-      --env=<value>   [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                      alphanumeric string; default: default
 
 DESCRIPTION
   Remove a parameter without deleting it from Parameter Store.
@@ -642,16 +741,15 @@ Update an existing parameter in Parameter Store.
 
 ```
 USAGE
-  $ griffin ssm update -n <value> [--env <value>] [--cwd <value>] [-d <value>] [-v <value> | -l | --from-stdin]
-    [-u]
+  $ griffin ssm update -n <value> [-E <value>] [--cwd <value>] [-d <value>] [-v <value> | -l | --from-stdin] [-u]
 
 FLAGS
+  -E, --env=<value>     [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                        alphanumeric string; default: default
   -n, --name=<value>    (required) the name of the parameter
   -u, --skip-unchanged  skip updating the parameter if the value has not changed
       --cwd=<value>     the directory where griffin's config file is located, both relative and absolute paths are
                         supported; default: .
-      --env=<value>     [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                        alphanumeric string; default: default
 
 SSM CONFIG FLAGS
   -d, --description=<value>  the description for the parameter in Parameter Store
@@ -681,16 +779,16 @@ Write a parameter to Parameter Store.
 
 ```
 USAGE
-  $ griffin ssm write -n <value> [--env <value>] [--cwd <value>] [-d <value>] [-t
-    SecureString|String|StringList] [-v <value> | -l | --from-stdin] [-e <value>] [-l] [-m] [-u]
+  $ griffin ssm write -n <value> [-E <value>] [--cwd <value>] [-d <value>] [-t SecureString|String|StringList]
+    [-v <value> | -l | --from-stdin] [-e <value>] [-l] [-o] [-u]
 
 FLAGS
+  -E, --env=<value>     [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
+                        alphanumeric string; default: default
   -n, --name=<value>    (required) the name of the parameter
   -u, --skip-unchanged  skip updating the parameter if the value has not changed
       --cwd=<value>     the directory where griffin's config file is located, both relative and absolute paths are
                         supported; default: .
-      --env=<value>     [default: default] the name of the environment (e.g. prod, qa, staging), this can be any
-                        alphanumeric string; default: default
 
 SSM CONFIG FLAGS
   -d, --description=<value>  the description for the parameter in Parameter Store
@@ -703,7 +801,7 @@ GRIFFIN CONFIG FLAGS
                               should be assigned the value of this parameter; default: normalized parameter name,
                               without the prefix
   -l, --always-use-latest     do not lock the version, instead always pull the latest version
-  -m, --allow-missing-value   do not fail when running exec or exporting variables if this parameter does not exist
+  -o, --optional              do not fail when running exec or exporting variables if this parameter does not exist
 
 VALUE INPUT FLAGS
   -l, --read-single-line  if reading from stdin, stop reading at \n

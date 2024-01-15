@@ -150,8 +150,8 @@ describe('ssm:create', () => {
     });
 
   happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:create', '--name', ctx.name, '--value', ctx.value, '--allow-missing-value'])
-    .it('should set allowMissingValue to true in the config if --allow-missing-value is specified', (ctx) => {
+    .commandWithContext((ctx) => ['ssm:create', '--name', ctx.name, '--value', ctx.value, '--optional'])
+    .it('should set allowMissingValue to true in the config if --optional is specified', (ctx) => {
       sinon.assert.calledOnce(ctx.configFile.setParamConfig);
       sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
     });

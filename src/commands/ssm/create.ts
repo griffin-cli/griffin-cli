@@ -64,8 +64,8 @@ export default class SSMCreate extends SSMBaseCommand<typeof SSMCreate> {
       description: 'do not lock the version, instead always pull the latest version',
       helpGroup: 'GRIFFIN CONFIG',
     }),
-    'allow-missing-value': Flags.boolean({
-      char: 'm',
+    optional: Flags.boolean({
+      char: 'o',
       description: 'do not fail when running exec or exporting variables if this parameter does not exist',
       helpGroup: 'GRIFFIN CONFIG',
     }),
@@ -90,7 +90,7 @@ export default class SSMCreate extends SSMBaseCommand<typeof SSMCreate> {
 
       this.configFile.setParamConfig(Source.SSM, this.flags.name, {
         envVarName: this.flags['env-var-name'] || SSMStore.getEnvVarNameFromParamName(this.flags.name),
-        allowMissingValue: this.flags['allow-missing-value'],
+        allowMissingValue: this.flags.optional,
         version: this.flags['always-use-latest'] ? undefined : updatedVersion,
       });
 
