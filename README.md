@@ -45,6 +45,7 @@ without having to coordinate updating your config.
 - [🚛 Migrating to griffin](#-migrating-to-griffin)
   - [Chamber](#chamber)
   - [dotenv](#dotenv)
+  - [SSM](#ssm)
 - [🚏 Roadmap](#-roadmap)
 - [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
@@ -297,6 +298,14 @@ dotenv is another great tool, but you'll likely need a separate tool to manage s
 
 ```sh
 griffin ssm import -d ./path/to/.env
+```
+
+## SSM
+
+To import your config directly from SSM, use the `--name` flag:
+
+```sh
+griffin ssm import -n /path/var
 ```
 
 # 🚏 Roadmap
