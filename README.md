@@ -220,6 +220,17 @@ griffin ssm read --env production /path/var
 
 If the `--env` flag is not specified, `default` is used instead.
 
+If you would like to inject the config from multiple environments, you can do so by generating a single `.env` file and sourcing it.  Similar to the following
+
+```sh
+griffin export --env prod_global --format dotenv > .env
+griffin export --env prod_service --format dotenv >> .env
+
+source .env
+
+./startup.sh
+```
+
 # 🚀 Deploying
 
 There are 2 main ways to deploy an app using griffin.  You can use griffin directly using the `exec` command or you can export your config and inject it using whatever method you'd like.
