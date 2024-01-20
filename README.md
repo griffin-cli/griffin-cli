@@ -220,6 +220,17 @@ griffin ssm read --env production /path/var
 
 If the `--env` flag is not specified, `default` is used instead.
 
+If you would like to inject the config from multiple environments, you can do so by generating a single `.env` file and sourcing it.  Similar to the following
+
+```sh
+griffin export --env prod_global --format dotenv > .env
+griffin export --env prod_service --format dotenv >> .env
+
+source .env
+
+./startup.sh
+```
+
 # 🚀 Deploying
 
 There are 2 main ways to deploy an app using griffin.  You can use griffin directly using the `exec` command or you can export your config and inject it using whatever method you'd like.
@@ -325,22 +336,43 @@ As Griffin continues to grow, we may also refactor into more of a plugin-based a
 
 # 📖 Commands
 <!-- commands -->
-* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-* [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
-* [`griffin export`](#griffin-export)
-* [`griffin help [COMMANDS]`](#griffin-help-commands)
-* [`griffin ssm config get`](#griffin-ssm-config-get)
-* [`griffin ssm config set`](#griffin-ssm-config-set)
-* [`griffin ssm create`](#griffin-ssm-create)
-* [`griffin ssm delete`](#griffin-ssm-delete)
-* [`griffin ssm history`](#griffin-ssm-history)
-* [`griffin ssm import`](#griffin-ssm-import)
-* [`griffin ssm read`](#griffin-ssm-read)
-* [`griffin ssm remove`](#griffin-ssm-remove)
-* [`griffin ssm update`](#griffin-ssm-update)
-* [`griffin ssm write`](#griffin-ssm-write)
-* [`griffin update [CHANNEL]`](#griffin-update-channel)
-* [`griffin version`](#griffin-version)
+- [🌱 Installation](#-installation)
+  - [Homebrew](#homebrew)
+  - [Linux](#linux)
+    - [apt](#apt)
+    - [deb File](#deb-file)
+    - [rpm File](#rpm-file)
+  - [tarballs](#tarballs)
+  - [Docker](#docker)
+  - [Windows](#windows)
+- [💻 Usage](#-usage)
+- [🔢 Multiple Environments](#-multiple-environments)
+- [🚀 Deploying](#-deploying)
+  - [exec](#exec)
+  - [export](#export)
+- [☁ AWS Configuration](#-aws-configuration)
+- [🚛 Migrating to griffin](#-migrating-to-griffin)
+  - [Chamber](#chamber)
+  - [dotenv](#dotenv)
+  - [SSM](#ssm)
+- [🚏 Roadmap](#-roadmap)
+- [📖 Commands](#-commands)
+  - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+  - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
+  - [`griffin export`](#griffin-export)
+  - [`griffin help [COMMANDS]`](#griffin-help-commands)
+  - [`griffin ssm config get`](#griffin-ssm-config-get)
+  - [`griffin ssm config set`](#griffin-ssm-config-set)
+  - [`griffin ssm create`](#griffin-ssm-create)
+  - [`griffin ssm delete`](#griffin-ssm-delete)
+  - [`griffin ssm history`](#griffin-ssm-history)
+  - [`griffin ssm import`](#griffin-ssm-import)
+  - [`griffin ssm read`](#griffin-ssm-read)
+  - [`griffin ssm remove`](#griffin-ssm-remove)
+  - [`griffin ssm update`](#griffin-ssm-update)
+  - [`griffin ssm write`](#griffin-ssm-write)
+  - [`griffin update [CHANNEL]`](#griffin-update-channel)
+  - [`griffin version`](#griffin-version)
 
 ## `griffin autocomplete [SHELL]`
 
