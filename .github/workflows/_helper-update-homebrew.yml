@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Download tarballs Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.version }}-tarballs
           path: ./dist
@@ -32,7 +32,7 @@ jobs:
           echo "linux_arm=$(shasum -a 256 ./dist/griffin-${{ inputs.version }}-linux-arm64.tar.xz | cut -d " " -f 1)" >> $GITHUB_OUTPUT
 
       - name: Update Homebrew
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_HOMEBREW_TOKEN }}
           script: |
