@@ -697,7 +697,7 @@ FLAGS
   -l, --latest           read the latest version
   -n, --name=<value>     (required) the name of the parameter
   -q, --quiet            print only the parameter value
-  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffon-config.json file
+  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffin-config.json file
   -x, --extended         show extra columns
       --columns=<value>  only show provided columns (comma-separated)
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are
