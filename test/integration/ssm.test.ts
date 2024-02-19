@@ -95,7 +95,7 @@ describe('SSM', () => {
       const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
       expect(dirStats.isDirectory()).to.equal(true);
 
-      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.json`));
+      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.yaml`));
       expect(fileStats.isFile()).to.equal(true);
 
       const output = (await readFile('./test-script-output.txt')).toString();
@@ -116,7 +116,7 @@ describe('SSM', () => {
       const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
       expect(dirStats.isDirectory()).to.equal(true);
 
-      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.json`));
+      const fileStats = await stat(resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.yaml`));
       expect(fileStats.isFile()).to.equal(true);
 
       const output = (await readFile('./test-script-output.txt')).toString();

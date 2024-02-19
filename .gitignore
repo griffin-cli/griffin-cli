@@ -12,6 +12,7 @@ oclif.manifest.json
 .secrets
 act-tmp/
 .griffin-config.*.json
+.griffin-config.*.yaml
 .env
 tsconfig.tsbuildinfo
 coverage/

@@ -1,6 +1,8 @@
 import { test, expect } from '@oclif/test';
 import mock from 'mock-fs';
 
+import yaml from 'yaml'
+
 import { ConfigFile, Source } from '../../src/config';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
@@ -19,7 +21,7 @@ describe('ConfigFile', () => {
 
       configFileTest
         .do((ctx) => mock({
-          [`.griffin-config.${ctx.env}.json`]: '',
+          [`.griffin-config.${ctx.env}.yaml`]: '',
         }))
         .do((ctx) => expect(ConfigFile.doesExist(ctx.env)).to.eventually.equal(true));
     });
@@ -29,7 +31,7 @@ describe('ConfigFile', () => {
         .add('source', Source.SSM)
         .add('id', 'id')
         .do((ctx) => mock({
-          [`.griffin-config.${ctx.env}.json`]: JSON.stringify({
+          [`.griffin-config.${ctx.env}.yaml`]: yaml.stringify({
             [ctx.source]: {
               [ctx.id]: {},
             },
@@ -53,7 +55,7 @@ describe('ConfigFile', () => {
         .add('source', Source.SSM)
         .add('id', () => randomUUID())
         .do((ctx) => mock({
-          [`./${ctx.cwd}/.griffin-config.${ctx.env}.json`]: JSON.stringify({
+          [`./${ctx.cwd}/.griffin-config.${ctx.env}.yaml`]: yaml.stringify({
             [ctx.source]: {
               [ctx.id]: {},
             },
@@ -71,7 +73,7 @@ describe('ConfigFile', () => {
         .add('source', Source.SSM)
         .add('id', () => randomUUID())
         .do((ctx) => mock({
-          [`${ctx.cwd}/.griffin-config.${ctx.env}.json`]: JSON.stringify({
+          [`${ctx.cwd}/.griffin-config.${ctx.env}.yaml`]: yaml.stringify({
             [ctx.source]: {
               [ctx.id]: {},
             },
@@ -99,7 +101,7 @@ describe('ConfigFile', () => {
         },
       }))
       .do((ctx) => mock({
-        [`.griffin-config.${ctx.env}.json`]: JSON.stringify(ctx.configFileData),
+        [`.griffin-config.${ctx.env}.yaml`]: yaml.stringify(ctx.configFileData),
       }))
       .add('config', (ctx) => ConfigFile.loadConfig(ctx.env));
 
@@ -182,7 +184,7 @@ describe('ConfigFile', () => {
     describe('save', () => {
       configInstanceTest
         .do((ctx) => ctx.config.save())
-        .do(async (ctx) => expect((await readFile(`.griffin-config.${ctx.env}.json`)).toString()).to.equal(JSON.stringify(ctx.configFileData, undefined, 2)))
+        .do(async (ctx) => expect((await readFile(`.griffin-config.${ctx.env}.yaml`)).toString()).to.equal(yaml.stringify(ctx.configFileData, undefined, 2)))
         .it('should save to a file');
     });
   });

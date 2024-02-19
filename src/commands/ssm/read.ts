@@ -25,7 +25,7 @@ export default class SSMRead extends SSMBaseCommand<typeof SSMRead> {
     }),
     version: Flags.string({
       char: 'v',
-      description: 'the version of the parameter to read, defaults to the version in your .griffon-config.json file',
+      description: 'the version of the parameter to read, defaults to the version in your .griffon-config.yaml file',
       exclusive: ['latest'],
     }),
     latest: Flags.boolean({
