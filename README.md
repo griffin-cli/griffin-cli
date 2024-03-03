@@ -138,7 +138,7 @@ dnf install /path/to/file.rpm
 Tarballs for Linux, Windows, and Mac are available on the [releases page](https://github.com/griffin-cli/griffin-cli/releases).  You can download and unpack manually or you can use the script below to install on most Linux and Mac machines:
 
 ```sh
-wget -q -O - https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/install.sh | bash
+wget -q -O - https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/install.sh | sh
 ```
 
 ## Docker
@@ -146,7 +146,7 @@ wget -q -O - https://raw.githubusercontent.com/griffin-cli/griffin-cli/main/inst
 To run commands in an interactive shell, run
 
 ```sh
-docker run -it --rm griffincli/griffin-cli bash
+docker run -it --rm griffincli/griffin-cli sh
 ```
 
 To run a command directly, specify the command to run after `griffincli/griffin-cli`.  For example, to check the version
@@ -158,7 +158,7 @@ docker run -it --rm griffincli/griffin-cli griffin version
 To use a specific version, you can add the version tag after the image.  For example, you could run
 
 ```sh
-docker run -it --rm griffincli/griffin-cli:0.2.0 bash
+docker run -it --rm griffincli/griffin-cli:0.2.0 sh
 ```
 
 To use in a Dockerfile, add the following line
@@ -336,22 +336,43 @@ As Griffin continues to grow, we may also refactor into more of a plugin-based a
 
 # 📖 Commands
 <!-- commands -->
-* [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
-* [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
-* [`griffin export`](#griffin-export)
-* [`griffin help [COMMANDS]`](#griffin-help-commands)
-* [`griffin ssm config get`](#griffin-ssm-config-get)
-* [`griffin ssm config set`](#griffin-ssm-config-set)
-* [`griffin ssm create`](#griffin-ssm-create)
-* [`griffin ssm delete`](#griffin-ssm-delete)
-* [`griffin ssm history`](#griffin-ssm-history)
-* [`griffin ssm import`](#griffin-ssm-import)
-* [`griffin ssm read`](#griffin-ssm-read)
-* [`griffin ssm remove`](#griffin-ssm-remove)
-* [`griffin ssm update`](#griffin-ssm-update)
-* [`griffin ssm write`](#griffin-ssm-write)
-* [`griffin update [CHANNEL]`](#griffin-update-channel)
-* [`griffin version`](#griffin-version)
+- [🌱 Installation](#-installation)
+  - [Homebrew](#homebrew)
+  - [Linux](#linux)
+    - [apt](#apt)
+    - [deb File](#deb-file)
+    - [rpm File](#rpm-file)
+  - [tarballs](#tarballs)
+  - [Docker](#docker)
+  - [Windows](#windows)
+- [💻 Usage](#-usage)
+- [🔢 Multiple Environments](#-multiple-environments)
+- [🚀 Deploying](#-deploying)
+  - [exec](#exec)
+  - [export](#export)
+- [☁ AWS Configuration](#-aws-configuration)
+- [🚛 Migrating to griffin](#-migrating-to-griffin)
+  - [Chamber](#chamber)
+  - [dotenv](#dotenv)
+  - [SSM](#ssm)
+- [🚏 Roadmap](#-roadmap)
+- [📖 Commands](#-commands)
+  - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
+  - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
+  - [`griffin export`](#griffin-export)
+  - [`griffin help [COMMANDS]`](#griffin-help-commands)
+  - [`griffin ssm config get`](#griffin-ssm-config-get)
+  - [`griffin ssm config set`](#griffin-ssm-config-set)
+  - [`griffin ssm create`](#griffin-ssm-create)
+  - [`griffin ssm delete`](#griffin-ssm-delete)
+  - [`griffin ssm history`](#griffin-ssm-history)
+  - [`griffin ssm import`](#griffin-ssm-import)
+  - [`griffin ssm read`](#griffin-ssm-read)
+  - [`griffin ssm remove`](#griffin-ssm-remove)
+  - [`griffin ssm update`](#griffin-ssm-update)
+  - [`griffin ssm write`](#griffin-ssm-write)
+  - [`griffin update [CHANNEL]`](#griffin-update-channel)
+  - [`griffin version`](#griffin-version)
 
 ## `griffin autocomplete [SHELL]`
 
