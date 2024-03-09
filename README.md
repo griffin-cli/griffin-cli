@@ -47,6 +47,7 @@ without having to coordinate updating your config.
   - [dotenv](#dotenv)
   - [SSM](#ssm)
 - [🚏 Roadmap](#-roadmap)
+- [⬆️ Migrating JSON-based configuration](#⬆️-migrating-json-based-configuration)
 - [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
   - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
@@ -333,6 +334,58 @@ Griffin is growing!  We're always looking for contributors and maintainers to he
   - Azure
 
 As Griffin continues to grow, we may also refactor into more of a plugin-based architecture so you only have to install what you need.
+
+# ⬆️ Migrating JSON-based configuration
+Older versions of Griffin used `JSON`-based configuration.  We've since changed the standard format to `YAML`.  Migrating this configration is fairly straightforward;  simply follow the steps below
+
+1. install the `yaml` package for python
+```sh
+pip install pyyaml 
+```
+2. Create a file named `migrate_griffin_config.py` in the root of your repository and mark it as executable
+```sh
+touch migrate_griffin_config.py
+chmod +x migrate_griffin_config.py
+```
+
+```python
+#!/usr/bin/env python
+
+import subprocess
+import yaml
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+
+def migrate(json_path: Path):
+    with json_path.open() as f:
+        json_config = json.load(f)
+
+    yaml_path = json_path.with_suffix(".yaml")
+    with yaml_path.open("w") as f:
+        yaml.dump(json_config, f)
+
+
+if __name__ == "__main__":
+    environments = HERE.glob("griffin_config.*.json")
+    for env in environments:
+        migrate(env)
+
+        # Remove the old json config
+        subprocess.run(["git", "rm", env])
+```
+
+3. run the script:
+```sh
+python migrate_griffin_config.py
+```
+
+4. (optional) remove the script
+```sh
+rm migrate_griffin_config.py
+```
 
 # 📖 Commands
 <!-- commands -->
@@ -697,7 +750,7 @@ FLAGS
   -l, --latest           read the latest version
   -n, --name=<value>     (required) the name of the parameter
   -q, --quiet            print only the parameter value
-  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffon-config.json file
+  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffin-config.json file
   -x, --extended         show extra columns
       --columns=<value>  only show provided columns (comma-separated)
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are

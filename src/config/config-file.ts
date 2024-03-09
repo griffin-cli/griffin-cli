@@ -3,6 +3,8 @@ import {
 } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
+import yaml from 'yaml';
+
 import ParamConfig from './param-config';
 import Source from './source';
 import SourceConfig from './source-config';
@@ -46,9 +48,8 @@ export default class ConfigFile {
     try {
       const filename = this.getFileName(env);
       const filepath = cwd ? resolve(process.cwd(), cwd, filename) : filename;
-      const data = await readFile(filepath);
-
-      return JSON.parse(data.toString());
+      const data = await readFile(filepath, 'utf8');
+      return yaml.parse(data);
     } catch (error) {
       if (error instanceof Error && (error as FileSystemError).code === 'ENOENT') {
         return {};
@@ -59,7 +60,7 @@ export default class ConfigFile {
   }
 
   private static getFileName(env: string): string {
-    return `.griffin-config.${env}.json`;
+    return `.griffin-config.${env}.yaml`;
   }
 
   getParamConfig(source: Source, id: string): ParamConfig | undefined {
@@ -90,8 +91,7 @@ export default class ConfigFile {
       // Make sure the directory exists.
       await mkdir(dirname(filepath), { recursive: true });
     }
-
-    await writeFile(filepath, JSON.stringify(this.config, undefined, 2));
+    await writeFile(filepath, yaml.stringify(this.config));
 
     await this.reload();
   }
