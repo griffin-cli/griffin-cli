@@ -31,7 +31,7 @@
     "dotenv": "^16.4.5",
     "limiter": "^2.1.0",
     "listr2": "^8.0.2",
-    "yaml": "^2.4.0"
+    "yaml": "^2.4.1"
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.523.0",
