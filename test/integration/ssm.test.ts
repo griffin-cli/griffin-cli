@@ -1,22 +1,48 @@
 import { stdin } from 'mock-stdin';
+import yaml from 'yaml';
 
 import test from '../helpers/register';
 import { randomUUID } from 'crypto';
 import { expect } from 'chai';
 import clearSSM from '../helpers/clear-ssm';
-import resetConfig from '../helpers/reset-config';
 import clearTestScriptOutput from '../helpers/clear-test-script-output';
-import { readFile, rm, stat, unlink, writeFile } from 'fs/promises';
+import { mkdir, readFile, rm, stat, unlink, writeFile } from 'fs/promises';
 import addParam from '../helpers/add-param';
 import { DeleteParameterCommand, ParameterType, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { ConfigFile, Source } from '../../src/config';
 import EnvFile from '../../src/utils/envfile';
 import { resolve } from 'path';
 
+type FileSystemError = Error & {
+  errno: number;
+  code: string;
+  syscall: string;
+  path: string;
+};
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const doesFileExist = async (filepath: string): Promise<boolean> => {
+  try {
+    await stat(filepath);
+
+    return true;
+  } catch (err) {
+    if (err instanceof Error && (err as FileSystemError).code === 'ENOENT') {
+      return false;
+    }
+
+    throw err;
+  }
+};
 
 describe('SSM', () => {
   const ssmTest = test
+    .add('testDir', `.tmp_test/${randomUUID()}`)
+    .do((ctx) => mkdir(ctx.testDir, { recursive: true }))
+    .finally(() => rm('.tmp_test', { recursive: true, force: true }))
+    .do((ctx) => process.chdir(ctx.testDir))
+    .finally(() => process.chdir(resolve(process.cwd(), '../..')))
     .do(() => clearSSM())
     .setEnv('AWS_REGION', 'us-east-1')
     .setEnv('AWS_ACCESS_KEY_ID', 'abc')
@@ -26,9 +52,51 @@ describe('SSM', () => {
     .add('stdin', () => stdin())
     .add('env', 'test')
     .finally((ctx) => ctx.stdin.restore())
-    .finally(() => resetConfig())
     .finally(() => clearTestScriptOutput())
     .finally(() => clearSSM());
+
+  ssmTest
+    .add('prodConfig', () => ({
+      [Source.SSM]: {
+        [randomUUID()]: {
+          version: 5,
+          envVarName: 'TEST_1',
+        },
+        [randomUUID()]: {
+          envVarName: 'TEST_2',
+        },
+      },
+    }))
+    .add('devConfig', () => ({
+      [Source.SSM]: {
+        [randomUUID()]: {
+          version: 5,
+          envVarName: 'TEST_1',
+        },
+        [randomUUID()]: {
+          envVarName: 'TEST_2',
+        },
+      },
+    }))
+    .do((ctx) => writeFile('.griffin-config.prod.json', JSON.stringify(ctx.prodConfig)))
+    .do((ctx) => writeFile('.griffin-config.dev.json', JSON.stringify(ctx.devConfig)))
+    .commandWithStdin((ctx) => ({
+      argv: ['ssm:create', '--env', 'test', '-n', `/test/${randomUUID()}`, '-v', 'test'],
+      input: 'y',
+    }))
+    .it('should migrate legacy config files', async (ctx) => {
+      await expect(doesFileExist('.griffin-config.prod.json')).to.eventually.be.false;
+      await expect(doesFileExist('.griffin-config.dev.json')).to.eventually.be.false;
+
+      await expect(doesFileExist('.griffin-config.prod.yaml')).to.eventually.be.true;
+      await expect(doesFileExist('.griffin-config.dev.yaml')).to.eventually.be.true;
+
+      const prodData = await readFile('.griffin-config.prod.yaml', { encoding: 'utf8' });
+      expect(yaml.parse(prodData)).to.deep.equal(ctx.prodConfig);
+
+      const devData = await readFile('.griffin-config.dev.yaml', { encoding: 'utf8' });
+      expect(yaml.parse(devData)).to.deep.equal(ctx.devConfig);
+    });
 
   ssmTest
     .commandWithContext((ctx) => ['export', '--env', 'inv@lid', '--format', 'dotenv'])
@@ -70,7 +138,7 @@ describe('SSM', () => {
     .commandWithContext((ctx) => ['ssm:create', '--env', 'test', '--name', ctx.param1.name, '--env-var-name', ctx.param1.envVarName, '--value', ctx.param1.value])
     .commandWithContext((ctx) => ['ssm:create', '--env', 'test', '--name', ctx.param2.name, '--env-var-name', ctx.param2.envVarName, '--value', ctx.param2.value])
     .commandWithContext((ctx) => ['ssm:create', '--env', 'test', '--name', ctx.param3.name, '--env-var-name', ctx.param3.envVarName, '--value', ctx.param3.value])
-    .commandWithContext((ctx) => ['exec', '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`, ctx.param2.envVarName, `--name=${ctx.param3.envVarName}`])
+    .commandWithContext((ctx) => ['exec', '--env', 'test', '--skip-exit', '--', '../../test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`, ctx.param2.envVarName, `--name=${ctx.param3.envVarName}`])
     .it('should execute the command', async (ctx) => {
       // This isn't great, but I can't find a way to guarantee the shell script has finished writing
       // to the file by now.
@@ -88,7 +156,7 @@ describe('SSM', () => {
     .finally((ctx) => rm(resolve(process.cwd(), ctx.cwd), { recursive: true }))
     .add('param1', () => ({ name: '/param/one', envVarName: 'ONE', value: randomUUID() }))
     .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param1.name, '--env-var-name', ctx.param1.envVarName, '--value', ctx.param1.value])
-    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`])
+    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', '../../test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`])
     .it('should save the config to the config file in the cwd directory', async (ctx) => {
       await sleep(5_000);
 
@@ -109,7 +177,7 @@ describe('SSM', () => {
     .add('param2', () => ({ name: '/param/two', envVarName: 'TWO', value: randomUUID() }))
     .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param1.name, '--env-var-name', ctx.param1.envVarName, '--value', ctx.param1.value])
     .commandWithContext((ctx) => ['ssm:create', '--cwd', ctx.cwd, '--env', ctx.env, '--name', ctx.param2.name, '--env-var-name', ctx.param2.envVarName, '--value', ctx.param2.value])
-    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`, ctx.param2.envVarName])
+    .commandWithContext((ctx) => ['exec', '--cwd', ctx.cwd, '--env', 'test', '--skip-exit', '--', '../../test/integration/test-script.sh', `--name=${ctx.param1.envVarName}`, ctx.param2.envVarName])
     .it('should not throw an error if the directory already exists', async (ctx) => {
       await sleep(5_000);
 
@@ -146,7 +214,7 @@ describe('SSM', () => {
 
       dotEnvImportTest
         .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix])
-        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', 'URL', 'MULTILINE_ESCAPED', 'BOOL', 'NUMBER'])
+        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', '../../test/integration/test-script.sh', 'URL', 'MULTILINE_ESCAPED', 'BOOL', 'NUMBER'])
         .it('should import dotenv files', async (ctx) => {
           await sleep(5_000);
 
@@ -205,7 +273,7 @@ ${ctx.params.NUMBER}`);
           value: 'https://bing.com/',
         }))
         .commandWithContext((ctx) => ['ssm:import', '--env', 'test', '--from-dotenv', ctx.filename, '--prefix', ctx.prefix, '--overwrite'])
-        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', './test/integration/test-script.sh', 'URL'])
+        .commandWithContext(() => ['exec', '--env', 'test', '--skip-exit', '--', '../../test/integration/test-script.sh', 'URL'])
         .it('should overwrite parameters if the overwrite flag is provided', async (ctx) => {
           const configFile = await ConfigFile.loadConfig('test');
 
@@ -294,7 +362,7 @@ ${ctx.params.NUMBER}`);
           name: ctx.params[2].name,
           value: randomUUID(),
         }))
-        .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+        .commandWithContext(() => ['exec', '--skip-exit', '--', '../../test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
         .it('should import chamber params and lock the version', async (ctx) => {
           // This isn't great, but I can't find a way to guarantee the shell script has finished writing
           // to the file by now.
@@ -314,7 +382,7 @@ ${ctx.params.NUMBER}`);
           name: ctx.params[2].name,
           value: ctx.updatedParamValue,
         }))
-        .commandWithContext(() => ['exec', '--skip-exit', '--', './test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
+        .commandWithContext(() => ['exec', '--skip-exit', '--', '../../test/integration/test-script.sh', `--name=PARAM_ONE`, 'PARAM_TWO', `--name=PARAM_THREE`])
         .it('should import chamber params without locking the version', async (ctx) => {
           // This isn't great, but I can't find a way to guarantee the shell script has finished writing
           // to the file by now.

@@ -75,6 +75,11 @@
       "@oclif/plugin-update",
       "@oclif/plugin-version"
     ],
+    "hooks": {
+      "ready": [
+        "./dist/hooks/ready/migrate"
+      ]
+    },
     "topicSeparator": " ",
     "topics": {
       "ssm": {

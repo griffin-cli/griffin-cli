@@ -86,6 +86,51 @@ describe('ConfigFile', () => {
           expect(config.hasParamConfig(ctx.source, ctx.id)).to.equal(true);
         });
     });
+
+    describe('migrateConfig', () => {
+      configFileTest
+        .add('config', () => ({
+          [Source.SSM]: {
+            [randomUUID()]: {
+              version: 5,
+              envVarName: 'TEST_1',
+            },
+            [randomUUID()]: {
+              envVarName: 'TEST_2',
+            },
+          },
+        }))
+        .do((ctx) => mock({
+          [`.griffin-config.${ctx.env}.json`]: JSON.stringify(ctx.config),
+        }))
+        .it('should convert the config to YAML', async (ctx) => {
+          await ConfigFile.migrateConfig(ctx.env);
+
+          expect((await readFile(`.griffin-config.${ctx.env}.yaml`)).toString()).to.equal(yaml.stringify(ctx.config));
+        });
+
+      configFileTest
+        .add('cwd', './test')
+        .add('config', () => ({
+          [Source.SSM]: {
+            [randomUUID()]: {
+              version: 5,
+              envVarName: 'TEST_1',
+            },
+            [randomUUID()]: {
+              envVarName: 'TEST_2',
+            },
+          },
+        }))
+        .do((ctx) => mock({
+          [`${ctx.cwd}/.griffin-config.${ctx.env}.json`]: JSON.stringify(ctx.config),
+        }))
+        .it('should convert the config in a different directory to YAML if cwd is specified', async (ctx) => {
+          await ConfigFile.migrateConfig(ctx.env, ctx.cwd);
+
+          expect((await readFile(`${ctx.cwd}/.griffin-config.${ctx.env}.yaml`)).toString()).to.equal(yaml.stringify(ctx.config));
+        });
+    });
   });
 
   describe('Instance Methods', () => {

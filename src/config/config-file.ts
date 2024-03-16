@@ -1,5 +1,5 @@
 import {
-  mkdir, readFile, stat, writeFile,
+  mkdir, readFile, stat, unlink, writeFile,
 } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
@@ -42,6 +42,18 @@ export default class ConfigFile {
 
   static async loadConfig(env: string, cwd?: string): Promise<ConfigFile> {
     return new ConfigFile(env, await this.loadConfigFromFile(env, cwd), cwd);
+  }
+
+  static async migrateConfig(env: string, cwd?: string): Promise<void> {
+    const fileName = `.griffin-config.${env}.json`;
+    const filePath = cwd ? resolve(process.cwd(), cwd, fileName) : fileName;
+
+    const data = await readFile(filePath, 'utf8');
+
+    const configFile = new ConfigFile(env, JSON.parse(data), cwd);
+    await configFile.save();
+
+    await unlink(filePath);
   }
 
   private static async loadConfigFromFile(env: string, cwd?: string): Promise<Config> {

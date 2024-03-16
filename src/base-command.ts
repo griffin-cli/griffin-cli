@@ -1,4 +1,4 @@
-import { Command, Flags } from '@oclif/core';
+import { Command, Flags, ux } from '@oclif/core';
 import { CommandError } from '@oclif/core/lib/interfaces';
 
 import { ConfigFile } from './config';
@@ -53,6 +53,16 @@ export default abstract class BaseCommand<T extends typeof Command & {
     this.configFile = (this.constructor as T).configFile
       || BaseCommand.configFile
       || await ConfigFile.loadConfig(this.flags.env, this.flags.cwd);
+
+    this.config.runHook('ready', {
+      Command: this.constructor,
+      argv: this.argv,
+      config: this.config,
+      configFile: this.configFile,
+      flags: this.flags,
+      args: this.args,
+      ux: ux.ux,
+    });
   }
 
   async catch(err: CommandError): Promise<void> {

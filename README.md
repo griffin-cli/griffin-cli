@@ -46,8 +46,9 @@ without having to coordinate updating your config.
   - [Chamber](#chamber)
   - [dotenv](#dotenv)
   - [SSM](#ssm)
+- [⬆️ Upgrade Guide](#️-upgrade-guide)
+  - [v2](#v2)
 - [🚏 Roadmap](#-roadmap)
-- [⬆️ Migrating JSON-based configuration](#⬆️-migrating-json-based-configuration)
 - [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
   - [`griffin exec COMMAND [ARGS]`](#griffin-exec-command-args)
@@ -320,6 +321,15 @@ To import your config directly from SSM, use the `--name` flag:
 griffin ssm import -n /path/var
 ```
 
+# ⬆️ Upgrade Guide
+
+## v2
+
+v2 introduced YAML-based config, replacing the legacy JSON-based config to improve readability and user-friendliness.  Config generated in earlier versions will no longer be usable by Griffin.
+
+To help migrate, Griffin will automatically detect legacy JSON config files and ask you if you would like to automatically convert them to the new format.  If you choose to use this method, no work is needed by you to migrate your config.
+
+
 # 🚏 Roadmap
 
 Griffin is growing!  We're always looking for contributors and maintainers to help us get to where we're going.  Amongst other things, Griffin is looking to add support for
@@ -334,58 +344,6 @@ Griffin is growing!  We're always looking for contributors and maintainers to he
   - Azure
 
 As Griffin continues to grow, we may also refactor into more of a plugin-based architecture so you only have to install what you need.
-
-# ⬆️ Migrating JSON-based configuration
-Older versions of Griffin used `JSON`-based configuration.  We've since changed the standard format to `YAML`.  Migrating this configration is fairly straightforward;  simply follow the steps below
-
-1. install the `yaml` package for python
-```sh
-pip install pyyaml 
-```
-2. Create a file named `migrate_griffin_config.py` in the root of your repository and mark it as executable
-```sh
-touch migrate_griffin_config.py
-chmod +x migrate_griffin_config.py
-```
-
-```python
-#!/usr/bin/env python
-
-import subprocess
-import yaml
-import json
-from pathlib import Path
-
-HERE = Path(__file__).parent
-
-
-def migrate(json_path: Path):
-    with json_path.open() as f:
-        json_config = json.load(f)
-
-    yaml_path = json_path.with_suffix(".yaml")
-    with yaml_path.open("w") as f:
-        yaml.dump(json_config, f)
-
-
-if __name__ == "__main__":
-    environments = HERE.glob("griffin_config.*.json")
-    for env in environments:
-        migrate(env)
-
-        # Remove the old json config
-        subprocess.run(["git", "rm", env])
-```
-
-3. run the script:
-```sh
-python migrate_griffin_config.py
-```
-
-4. (optional) remove the script
-```sh
-rm migrate_griffin_config.py
-```
 
 # 📖 Commands
 <!-- commands -->
