@@ -3,6 +3,8 @@ import { stdin } from 'mock-stdin';
 import sinon, { SinonStubbedInstance } from 'sinon';
 import { ConfigFile } from '../../src/config';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default test
   .add('_griffin', {} as Record<string, unknown> & {
     _env: Record<string, string | undefined>;
@@ -28,7 +30,9 @@ export default test
       const { argv, input, delay } = cb(ctx);
       const $run = command(argv).run(ctx as any);
 
-      setTimeout(() => ctx.stdin.send(input).end(), delay ?? 500);
+      await sleep(delay ?? 500);
+      ctx.stdin.send(input).end();
+      await sleep(10);
 
       return $run;
     },
@@ -42,6 +46,10 @@ export default test
       process.env[envVarName] = envVarValue;
     },
     finally(ctx) {
+      if (!ctx._griffin?._env) {
+        return;
+      }
+
       process.env[envVarName] = ctx._griffin._env[envVarName];
       delete ctx._griffin._env[envVarName];
     },

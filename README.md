@@ -46,6 +46,8 @@ without having to coordinate updating your config.
   - [Chamber](#chamber)
   - [dotenv](#dotenv)
   - [SSM](#ssm)
+- [⬆️ Upgrade Guide](#️-upgrade-guide)
+  - [v2](#v2)
 - [🚏 Roadmap](#-roadmap)
 - [📖 Commands](#-commands)
   - [`griffin autocomplete [SHELL]`](#griffin-autocomplete-shell)
@@ -318,6 +320,15 @@ To import your config directly from SSM, use the `--name` flag:
 ```sh
 griffin ssm import -n /path/var
 ```
+
+# ⬆️ Upgrade Guide
+
+## v2
+
+v2 introduced YAML-based config, replacing the legacy JSON-based config to improve readability and user-friendliness.  Config generated in earlier versions will no longer be usable by Griffin.
+
+To help migrate, Griffin will automatically detect legacy JSON config files and ask you if you would like to automatically convert them to the new format.  If you choose to use this method, no work is needed by you to migrate your config.
+
 
 # 🚏 Roadmap
 
@@ -697,7 +708,7 @@ FLAGS
   -l, --latest           read the latest version
   -n, --name=<value>     (required) the name of the parameter
   -q, --quiet            print only the parameter value
-  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffon-config.json file
+  -v, --version=<value>  the version of the parameter to read, defaults to the version in your .griffin-config.json file
   -x, --extended         show extra columns
       --columns=<value>  only show provided columns (comma-separated)
       --cwd=<value>      the directory where griffin's config file is located, both relative and absolute paths are
