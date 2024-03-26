@@ -34,7 +34,7 @@
     "yaml": "^2.4.1"
   },
   "devDependencies": {
-    "@aws-sdk/types": "^3.523.0",
+    "@aws-sdk/types": "^3.535.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@oclif/test": "^3.2.1",
     "@types/chai": "^4.3.12",
