@@ -1,0 +1,60 @@
+name: Upgrade Dependencies
+
+on:
+  schedule:
+    - cron: '0 4 * * 6'  # Every Saturday at 06:00 UTC
+
+jobs:
+  deps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Dependencies
+        run: |
+          npm install
+
+      - name: Set Up Env
+        run: |
+          npm run up
+
+      - name: Run ncu
+        run: |
+          npx npm-check-updates
+          npx npm-check-updates -u --doctor -x chai -x eslint
+
+      - name: Date
+        id: date
+        run: echo "today=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Create PR
+        id: pr
+        if: vars.GRIFFIN_TEST_RUN != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: deps/${{ steps.date.outputs.today }}
+          commit-message: Update dependencies to latest version.
+          title: "[deps] Update Dependencies - ${{ steps.date.outputs.today }}"
+          body: |
+            Related Issue(s): N/A
+
+            Change Type: Other
+
+            Description
+
+            Update all dependencies to latest version.
+          assignees: c1moore
+          reviewers: c1moore
+
+      - name: Log PR Info
+        run: |
+          echo "Pull Request Number - ${{ steps.pr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.pr.outputs.pull-request-url }}"
