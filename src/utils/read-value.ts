@@ -3,7 +3,7 @@ import { ux } from '@oclif/core';
 import InputOptions from '../store/input-options';
 
 const readValueFromSTDIN = (readSingleLine?: boolean): Promise<string> => new Promise((resolve) => {
-  const pipe = process.openStdin();
+  const pipe = process.stdin;
   pipe.setEncoding('utf-8');
 
   if (pipe.isTTY) {
