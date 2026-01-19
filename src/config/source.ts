@@ -1,4 +1,4 @@
-import { UnknownStoreError } from '../errors';
+import { UnknownStoreError } from '../errors/index.js';
 
 enum Source {
   SSM = 'SSM',

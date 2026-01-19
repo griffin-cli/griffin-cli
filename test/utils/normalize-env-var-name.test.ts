@@ -1,6 +1,6 @@
 import { expect, test } from '@oclif/test';
 
-import normalizeEnvVarName from '../../src/utils/normalize-env-var-name';
+import normalizeEnvVarName from '../../src/utils/normalize-env-var-name.js';
 
 describe('normalizeEnvVarName()', () => {
   test

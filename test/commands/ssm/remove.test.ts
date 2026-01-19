@@ -1,8 +1,8 @@
-import { Source } from '../../../src/config'
+import { Source } from '../../../src/config/index.js'
 import sinon from 'sinon'
-import SSMRemove from '../../../src/commands/ssm/remove'
+import SSMRemove from '../../../src/commands/ssm/remove.js'
 import { randomUUID } from 'crypto'
-import test from '../../helpers/register'
+import test from '../../helpers/register.js'
 
 describe('ssm:remove', () => {
   const removeTest = test

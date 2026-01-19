@@ -2,7 +2,9 @@
   "extends": "../tsconfig",
   "compilerOptions": {
     "noEmit": true,
-    "target": "es2021",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "rootDir": "."
   },
   "references": [

@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto';
 import Sinon, { SinonStubbedInstance } from 'sinon';
 
-import test from '../../helpers/register';
-import EnvFile from '../../../src/utils/envfile';
-import { SSMStore } from '../../../src/store';
-import SSMImport from '../../../src/commands/ssm/import';
-import { Source } from '../../../src/config';
-import { normalizeEnvVarName } from '../../../src/utils';
+import test from '../../helpers/register.js';
+import EnvFile from '../../../src/utils/envfile.js';
+import { SSMStore } from '../../../src/store/index.js';
+import SSMImport from '../../../src/commands/ssm/import.js';
+import { Source } from '../../../src/config/index.js';
+import { normalizeEnvVarName } from '../../../src/utils/index.js';
 import { unlink, writeFile } from 'fs/promises';
 import { expect } from '@oclif/test';
 

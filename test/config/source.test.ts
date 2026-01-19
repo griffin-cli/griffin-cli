@@ -1,6 +1,6 @@
 import test, { expect } from '@oclif/test';
-import Source, { isSource, toSource } from '../../src/config/source';
-import { UnknownStoreError } from '../../src/errors';
+import Source, { isSource, toSource } from '../../src/config/source.js';
+import { UnknownStoreError } from '../../src/errors/index.js';
 
 describe('Source', () => {
   describe('isSource', () => {

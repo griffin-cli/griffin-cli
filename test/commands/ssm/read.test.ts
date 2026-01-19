@@ -1,12 +1,12 @@
 import { expect } from '@oclif/test';
 import sinon, { SinonStubbedInstance } from 'sinon';
 
-import SSMRead from '../../../src/commands/ssm/read';
-import { SSMStore } from '../../../src/store';
-import { ConfigFile } from '../../../src/config';
+import SSMRead from '../../../src/commands/ssm/read.js';
+import { SSMStore } from '../../../src/store/index.js';
+import { ConfigFile } from '../../../src/config/index.js';
 import { randomUUID } from 'crypto';
 
-import test from '../../helpers/register';
+import test from '../../helpers/register.js';
 
 describe('ssm:read', () => {
   const readTest = test

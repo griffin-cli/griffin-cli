@@ -5,10 +5,10 @@ import { dirname, resolve } from 'node:path';
 
 import yaml from 'yaml';
 
-import ParamConfig from './param-config';
-import Source from './source';
-import SourceConfig from './source-config';
-import ParamDefinition from '../types/param-definition';
+import type { ParamConfig } from './param-config.js';
+import type { SourceConfig } from './source-config.js';
+import Source from './source.js';
+import type { ParamDefinition } from '../types/param-definition.js';
 
 type FileSystemError = Error & {
   errno: number;

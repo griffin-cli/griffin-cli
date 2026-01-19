@@ -1,7 +1,7 @@
 import { test, command } from '@oclif/test';
 import { stdin } from 'mock-stdin';
 import sinon, { SinonStubbedInstance } from 'sinon';
-import { ConfigFile } from '../../src/config';
+import { ConfigFile } from '../../src/config/index.js';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

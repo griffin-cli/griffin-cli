@@ -1,16 +1,16 @@
 import { stdin } from 'mock-stdin';
 import yaml from 'yaml';
 
-import test from '../helpers/register';
+import test from '../helpers/register.js';
 import { randomUUID } from 'crypto';
 import { expect } from 'chai';
-import clearSSM from '../helpers/clear-ssm';
-import clearTestScriptOutput from '../helpers/clear-test-script-output';
+import clearSSM from '../helpers/clear-ssm.js';
+import clearTestScriptOutput from '../helpers/clear-test-script-output.js';
 import { mkdir, readFile, rm, stat, unlink, writeFile } from 'fs/promises';
-import addParam from '../helpers/add-param';
+import addParam from '../helpers/add-param.js';
 import { DeleteParameterCommand, ParameterType, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { ConfigFile, Source } from '../../src/config';
-import EnvFile from '../../src/utils/envfile';
+import { ConfigFile, Source } from '../../src/config/index.js';
+import EnvFile from '../../src/utils/envfile.js';
 import { resolve } from 'path';
 
 type FileSystemError = Error & {

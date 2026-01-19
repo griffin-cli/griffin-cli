@@ -1,11 +1,10 @@
-import { expect } from '@oclif/test';
 import Sinon, { SinonStub, SinonStubbedInstance } from 'sinon';
 
-import test from '../../helpers/register';
-import { SSMStore } from '../../../src/store';
-import SSMHistory from '../../../src/commands/ssm/history';
+import test from '../../helpers/register.js';
+import { SSMStore } from '../../../src/store/index.js';
+import SSMHistory from '../../../src/commands/ssm/history.js';
 import { randomUUID } from 'crypto';
-import { DataLogger } from '../../../src/utils';
+import { DataLogger } from '../../../src/utils/index.js';
 
 describe('ssm:history', () => {
   const historyTest = test

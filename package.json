@@ -3,12 +3,17 @@
   "version": "2.0.9",
   "description": "Tool for pulling secrets and other config with version control.",
   "author": "Calvin Moore @c1moore",
+  "type": "module",
   "bin": {
     "griffin": "./bin/run"
   },
   "homepage": "https://github.com/griffin-cli/griffin-cli",
   "license": "MIT",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./interfaces": "./dist/interfaces.js"
+  },
   "repository": "griffin-cli/griffin-cli",
   "files": [
     "/bin",
@@ -62,6 +67,7 @@
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "tslib": "^2.6.3",
+    "tsx": "^4.19.0",
     "typescript": "^5.5.3"
   },
   "oclif": {

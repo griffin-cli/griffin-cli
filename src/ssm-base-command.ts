@@ -1,7 +1,7 @@
 import { Command } from '@oclif/core';
 
-import BaseCommand from './base-command';
-import { SSMStore } from './store';
+import BaseCommand from './base-command.js';
+import { SSMStore } from './store/index.js';
 
 export default abstract class SSMBaseCommand<T extends typeof Command & {
   ssmStore?: SSMStore;

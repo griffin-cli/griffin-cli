@@ -1,6 +1,6 @@
-import Store from './store';
-import { Source } from '../config';
-import { UnknownStoreError } from '../errors';
+import type { Store } from './store.js';
+import { Source } from '../config/index.js';
+import { UnknownStoreError } from '../errors/index.js';
 
 export default class StoreFactory {
   private static stores: Partial<Record<Source, Store>> = {};

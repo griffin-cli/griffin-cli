@@ -1,4 +1,4 @@
-type ParamRecord = {
+export type ParamRecord = {
   name: string;
   description?: string;
   value?: string;
@@ -6,5 +6,3 @@ type ParamRecord = {
   modifiedAt?: Date;
   modifiedBy?: string;
 };
-
-export default ParamRecord;

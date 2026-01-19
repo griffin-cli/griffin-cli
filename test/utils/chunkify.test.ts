@@ -1,5 +1,5 @@
 import { test, expect } from '@oclif/test';
-import chunkify from '../../src/utils/chunkify';
+import chunkify from '../../src/utils/chunkify.js';
 
 describe('chunkify', () => {
   test.it('should work with an empty array', () => {

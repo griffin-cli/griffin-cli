@@ -1,9 +1,9 @@
-import test from '../../helpers/register';
-import SSMDelete from '../../../src/commands/ssm/delete';
-import { SSMStore } from '../../../src/store';
+import test from '../../helpers/register.js';
+import SSMDelete from '../../../src/commands/ssm/delete.js';
+import { SSMStore } from '../../../src/store/index.js';
 import { randomUUID } from 'crypto';
 import sinon, { SinonStubbedInstance } from 'sinon';
-import { Source } from '../../../src/config';
+import { Source } from '../../../src/config/index.js';
 
 describe('ssm:delete', () => {
   const deleteTest = test

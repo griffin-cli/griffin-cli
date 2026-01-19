@@ -5,8 +5,8 @@ import mock from 'mock-fs'
 import { stdin } from 'mock-stdin';
 import Sinon from 'sinon';
 
-import migrate from '../../../src/hooks/ready/migrate';
-import { ConfigFile } from '../../../src/config';
+import migrate from '../../../src/hooks/ready/migrate.js';
+import { ConfigFile } from '../../../src/config/index.js';
 
 describe('Migrate Hook', () => {
   const migrateTest = test

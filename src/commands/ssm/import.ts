@@ -1,16 +1,17 @@
 import { readFile } from 'fs/promises';
 
 import { ParameterType } from '@aws-sdk/client-ssm';
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 import { parse } from 'dotenv';
-import { RateLimiter } from 'limiter';
+import * as limiter from 'limiter';
 import { Listr } from 'listr2';
 
-import { Source } from '../../config';
-import ParameterAlreadyExistsError from '../../errors/parameter-already-exists.error';
-import SSMBaseCommand from '../../ssm-base-command';
-import { SSMStore } from '../../store';
+import { Source } from '../../config/index.js';
+import ParameterAlreadyExistsError from '../../errors/parameter-already-exists.error.js';
+import SSMBaseCommand from '../../ssm-base-command.js';
+import { SSMStore } from '../../store/index.js';
+
+const { RateLimiter } = limiter;
 
 export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
   static description = 'Import a parameter from Parameter Store or another config source.';
@@ -93,7 +94,7 @@ export default class SSMImport extends SSMBaseCommand<typeof SSMImport> {
         await this.importDotEnvConfig();
       }
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 

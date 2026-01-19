@@ -1,10 +1,9 @@
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { Config, Hook } from '@oclif/core';
-import { Hooks } from '@oclif/core/lib/interfaces';
+import { Config, Hook, Interfaces } from '@oclif/core';
 
-import { ConfigFile } from '../../config';
+import { ConfigFile } from '../../config/index.js';
 
 const legacyFileNamePattern = /^\.griffin-config\.(?<env>.*)\.json$/;
 
@@ -12,7 +11,7 @@ interface CliUx {
   confirm(prompt: string): Promise<boolean>;
 }
 
-interface CustomHooks extends Hooks {
+interface CustomHooks extends Interfaces.Hooks {
   ready: {
     options: {
       Command: new (argv: string[], config: Config) => unknown;

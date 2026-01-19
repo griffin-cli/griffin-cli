@@ -4,9 +4,9 @@ import { mockClient } from 'aws-sdk-client-mock';
 import { DeleteParameterCommand, GetParameterCommand, GetParameterHistoryCommand, GetParametersCommand, ParameterHistory, ParameterNotFound, ParameterType, ParameterVersionNotFound, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { randomUUID } from 'crypto';
 import sinon from 'sinon';
-import { MissingRequiredParamError, ParameterNotFoundError, ParameterVersionNotFoundError } from '../../src/errors';
-import SSMStore from '../../src/store/ssm-store';
-import ParamDefinition from '../../src/types/param-definition';
+import { MissingRequiredParamError, ParameterNotFoundError, ParameterVersionNotFoundError } from '../../src/errors/index.js';
+import SSMStore from '../../src/store/ssm-store.js';
+import ParamDefinition from '../../src/types/param-definition.js';
 
 describe('SSMStore', () => {
   describe('Static Methods', () => {

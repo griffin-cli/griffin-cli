@@ -1,6 +1,6 @@
-import { Source } from '../config';
-import { StoreFactory } from '../store';
-import ParamDefinition from '../types/param-definition';
+import { Source } from '../config/index.js';
+import { StoreFactory } from '../store/index.js';
+import type { ParamDefinition } from '../types/param-definition.js';
 
 export default async (
   paramDefinitions: Partial<Record<Source, ParamDefinition[]>>,

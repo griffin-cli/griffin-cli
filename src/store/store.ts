@@ -1,6 +1,6 @@
-import EnvVar from '../types/env-var';
-import ParamDefinition from '../types/param-definition';
+import type { EnvVar } from '../types/env-var.js';
+import type { ParamDefinition } from '../types/param-definition.js';
 
-export default interface Store {
+export interface Store {
   getEnvVars(params: ParamDefinition[]): Promise<EnvVar[]>
 }

@@ -1,7 +1,7 @@
 import { SinonStubbedInstance, SinonStub } from 'sinon';
 
-import Export from '../../src/commands/export';
-import test from '../helpers/register';
+import Export from '../../src/commands/export.js';
+import test from '../helpers/register.js';
 import { expect } from '@oclif/test';
 import mock from 'mock-fs';
 import { readFile, unlink } from 'fs/promises';

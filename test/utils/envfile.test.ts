@@ -1,6 +1,6 @@
 import { test, expect } from '@oclif/test';
 
-import EnvFile from '../../src/utils/envfile';
+import EnvFile from '../../src/utils/envfile.js';
 
 describe('EnvFile', () => {
   describe('stringify', () => {

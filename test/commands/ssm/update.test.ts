@@ -2,10 +2,10 @@ import { expect } from '@oclif/test'
 import { stdin } from 'mock-stdin';
 import sinon from 'sinon';
 
-import SSMUpdate from '../../../src/commands/ssm/update';
-import test from '../../helpers/register';
-import { SSMStore } from '../../../src/store';
-import { Source } from '../../../src/config';
+import SSMUpdate from '../../../src/commands/ssm/update.js';
+import test from '../../helpers/register.js';
+import { SSMStore } from '../../../src/store/index.js';
+import { Source } from '../../../src/config/index.js';
 import { randomUUID } from 'crypto';
 import { SinonStubbedInstance, SinonStub } from 'sinon';
 import { ux } from '@oclif/core';

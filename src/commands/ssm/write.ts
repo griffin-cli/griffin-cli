@@ -1,11 +1,10 @@
 import { ParameterType } from '@aws-sdk/client-ssm';
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
-import { ParamConfig, Source } from '../../config';
-import SSMBaseCommand from '../../ssm-base-command';
-import { SSMStore } from '../../store';
-import readValue from '../../utils/read-value';
+import { ParamConfig, Source } from '../../config/index.js';
+import SSMBaseCommand from '../../ssm-base-command.js';
+import { SSMStore } from '../../store/index.js';
+import readValue from '../../utils/read-value.js';
 
 export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
   static description = 'Write a parameter to Parameter Store.';
@@ -119,7 +118,7 @@ export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
       this.configFile.setParamConfig(Source.SSM, this.flags.name, paramConfig);
       await this.configFile.save();
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 

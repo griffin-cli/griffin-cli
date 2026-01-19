@@ -3,7 +3,7 @@ import mock from 'mock-fs';
 
 import yaml from 'yaml'
 
-import { ConfigFile, Source } from '../../src/config';
+import { ConfigFile, Source } from '../../src/config/index.js';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 

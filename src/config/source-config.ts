@@ -1,5 +1,3 @@
-import ParamConfig from './param-config';
+import type { ParamConfig } from './param-config.js';
 
-type SourceConfig = Record<string, ParamConfig>;
-
-export default SourceConfig;
+export type SourceConfig = Record<string, ParamConfig>;

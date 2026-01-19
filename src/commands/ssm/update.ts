@@ -1,10 +1,9 @@
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
-import { Source } from '../../config';
-import ParameterConfigNotFoundError from '../../errors/parameter-config-not-found-error';
-import SSMBaseCommand from '../../ssm-base-command';
-import readValue from '../../utils/read-value';
+import { Source } from '../../config/index.js';
+import ParameterConfigNotFoundError from '../../errors/parameter-config-not-found-error.js';
+import SSMBaseCommand from '../../ssm-base-command.js';
+import readValue from '../../utils/read-value.js';
 
 export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
   static description = 'Update an existing parameter in Parameter Store.';
@@ -85,7 +84,7 @@ export default class SSMWrite extends SSMBaseCommand<typeof SSMWrite> {
       this.configFile.setParamConfig(Source.SSM, this.flags.name, paramConfig);
       await this.configFile.save();
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 

@@ -1,10 +1,11 @@
-import { Command, Flags, ux } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import {
+  Command, Flags, Interfaces, ux,
+} from '@oclif/core';
 
-import { ConfigFile } from './config';
-import InvalidFlagError from './errors/invalid-flag-error';
-import ExtendArgs from './types/extend-args';
-import ExtendFlags from './types/extend-flags';
+import { ConfigFile } from './config/index.js';
+import InvalidFlagError from './errors/invalid-flag-error.js';
+import type { ExtendArgs } from './types/extend-args.js';
+import type { ExtendFlags } from './types/extend-flags.js';
 
 export default abstract class BaseCommand<T extends typeof Command & {
   configFile?: ConfigFile;
@@ -65,7 +66,7 @@ export default abstract class BaseCommand<T extends typeof Command & {
     });
   }
 
-  async catch(err: CommandError): Promise<void> {
+  async catch(err: Interfaces.CommandError): Promise<void> {
     this.logToStderr(err.message);
     this.exit(err.exitCode || 1);
   }

@@ -1,9 +1,9 @@
 import { expect } from '@oclif/test'
 
-import test from '../../../helpers/register';
+import test from '../../../helpers/register.js';
 import { randomUUID } from 'crypto';
-import SSMConfigGet from '../../../../src/commands/ssm/config/get';
-import { ParamConfig, Source } from '../../../../src/config';
+import SSMConfigGet from '../../../../src/commands/ssm/config/get.js';
+import { ParamConfig, Source } from '../../../../src/config/index.js';
 
 describe('config:get', () => {
   const getConfigTest = test

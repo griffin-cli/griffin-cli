@@ -12,15 +12,15 @@ import {
   SSMClient,
 } from '@aws-sdk/client-ssm';
 
-import Store from './store';
-import StoreFactory from './store-factory';
-import { Source } from '../config';
-import { MissingRequiredParamError, ParameterVersionNotFoundError, ParameterNotFoundError } from '../errors';
-import EnvVar from '../types/env-var';
-import ParamDefinition from '../types/param-definition';
-import ParamRecord from '../types/param-record';
-import { normalizeEnvVarName } from '../utils';
-import chunkify from '../utils/chunkify';
+import StoreFactory from './store-factory.js';
+import type { Store } from './store.js';
+import { Source } from '../config/index.js';
+import { MissingRequiredParamError, ParameterVersionNotFoundError, ParameterNotFoundError } from '../errors/index.js';
+import type { EnvVar } from '../types/env-var.js';
+import type { ParamDefinition } from '../types/param-definition.js';
+import type { ParamRecord } from '../types/param-record.js';
+import chunkify from '../utils/chunkify.js';
+import { normalizeEnvVarName } from '../utils/index.js';
 
 export default class SSMStore implements Store {
   private readonly client: SSMClient;

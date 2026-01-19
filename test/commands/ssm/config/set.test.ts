@@ -2,10 +2,10 @@ import { expect } from '@oclif/test'
 import { randomUUID } from 'crypto';
 import Sinon, { SinonStubbedInstance } from 'sinon';
 
-import test from '../../../helpers/register';
-import SSMConfigSet from '../../../../src/commands/ssm/config/set';
-import { ParamConfig, Source } from '../../../../src/config';
-import { SSMStore } from '../../../../src/store';
+import test from '../../../helpers/register.js';
+import SSMConfigSet from '../../../../src/commands/ssm/config/set.js';
+import { ParamConfig, Source } from '../../../../src/config/index.js';
+import { SSMStore } from '../../../../src/store/index.js';
 
 describe('config:set', () => {
   const setConfigTest = test
