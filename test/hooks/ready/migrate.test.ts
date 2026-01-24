@@ -1,32 +1,43 @@
-import { ux as cliUx } from '@oclif/core';
-import { Hook } from '@oclif/core/lib/interfaces';
-import { test } from '@oclif/test'
-import mock from 'mock-fs'
-import { stdin } from 'mock-stdin';
-import Sinon from 'sinon';
+import { expect } from 'chai';
+import { Interfaces } from '@oclif/core';
+import mock from 'mock-fs';
+import sinon, { SinonSandbox, SinonStub } from 'sinon';
 
 import migrate from '../../../src/hooks/ready/migrate.js';
 import { ConfigFile } from '../../../src/config/index.js';
 
 describe('Migrate Hook', () => {
-  const migrateTest = test
-    .stdout()
-    .stderr()
-    .add('hookContext', () => ({
+  let sandbox: SinonSandbox;
+  let hookContext: sinon.SinonStubbedInstance<Interfaces.Hook.Context>;
+  let migrateConfigStub: SinonStub;
+  let opts: {
+    Command: any;
+    argv: string[];
+    config: any;
+    configFile: any;
+    flags: any;
+    args: any;
+    context: any;
+    ux: {
+      confirm: SinonStub;
+    };
+  };
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    hookContext = {
       config: {} as any,
-      debug: Sinon.stub().returns(undefined),
-      error: Sinon.stub().returns(undefined),
-      exit: Sinon.stub().returns(undefined),
-      log: Sinon.stub().returns(undefined),
-      warn: Sinon.stub().returns(undefined),
-    } as Sinon.SinonStubbedInstance<Hook.Context>))
-    .add('stdin', () => stdin())
-    .finally((ctx) => ctx.stdin.restore())
-    .add('sandbox', () => Sinon.createSandbox())
-    .finally((ctx) => ctx.sandbox.restore())
-    .add('migrateConfigStub', (ctx) => ctx.sandbox.stub(ConfigFile, 'migrateConfig'))
-    .add('opts', (ctx) => ({
-      Command: class { },
+      debug: sandbox.stub().returns(undefined),
+      error: sandbox.stub().returns(undefined),
+      exit: sandbox.stub().returns(undefined),
+      log: sandbox.stub().returns(undefined),
+      warn: sandbox.stub().returns(undefined),
+    } as sinon.SinonStubbedInstance<Interfaces.Hook.Context>;
+
+    migrateConfigStub = sandbox.stub(ConfigFile, 'migrateConfig');
+
+    opts = {
+      Command: class {},
       argv: [],
       config: {} as any,
       configFile: {} as any,
@@ -34,101 +45,105 @@ describe('Migrate Hook', () => {
       args: {},
       context: {} as any,
       ux: {
-        confirm: Sinon.stub(),
+        confirm: sandbox.stub(),
       },
-    }))
-    .register('runMigrate', (answer?: boolean) => ({
-      async run(ctx) {
-        if (answer !== undefined && answer !== null) {
-          (ctx.opts.ux.confirm).resolves(answer);
-        }
+    };
+  });
 
-        await migrate.call(ctx.hookContext, ctx.opts);
-      },
-    }))
-    .finally(() => mock.restore());
+  afterEach(() => {
+    mock.restore();
+    sandbox.restore();
+  });
 
-  migrateTest
-    .do(() => mock({}))
-    .runMigrate()
-    .it('should not prompt the user to migrate if no config files exist', async (ctx) => {
-      Sinon.assert.notCalled(ctx.hookContext.warn);
-      Sinon.assert.notCalled(ctx.opts.ux.confirm);
-      Sinon.assert.notCalled(ctx.migrateConfigStub);
-    });
+  async function runMigrate(answer?: boolean): Promise<void> {
+    if (answer !== undefined && answer !== null) {
+      opts.ux.confirm.resolves(answer);
+    }
+    await migrate.call(hookContext, opts);
+  }
 
-  migrateTest
-    .do(() => mock({
+  it('should not prompt the user to migrate if no config files exist', async () => {
+    mock({});
+
+    await runMigrate();
+
+    sinon.assert.notCalled(hookContext.warn);
+    sinon.assert.notCalled(opts.ux.confirm);
+    sinon.assert.notCalled(migrateConfigStub);
+  });
+
+  it('should not prompt the user to migrate if only new config files exist', async () => {
+    mock({
       '.griffin-config.prod.yaml': '{}',
       '.griffin-config.staging.yaml': '{}',
       '.griffin-config.dev.yaml': '{}',
-    }))
-    .runMigrate()
-    .it('should not prompt the user to migrate if only new config files exist', async (ctx) => {
-      Sinon.assert.notCalled(ctx.hookContext.warn);
-      Sinon.assert.notCalled(ctx.opts.ux.confirm);
-      Sinon.assert.notCalled(ctx.migrateConfigStub);
     });
 
-  migrateTest
-    .do(() => mock({
+    await runMigrate();
+
+    sinon.assert.notCalled(hookContext.warn);
+    sinon.assert.notCalled(opts.ux.confirm);
+    sinon.assert.notCalled(migrateConfigStub);
+  });
+
+  it('should prompt the user and not migrate the legacy config files if the user declines', async () => {
+    mock({
       '.griffin-config.prod.json': '{}',
       '.griffin-config.staging.json': '{}',
       '.griffin-config.dev.json': '{}',
-    }))
-    .runMigrate(false)
-    .it('should prompt the user and not migrate the legacy config files if the user declines', async (ctx) => {
-      Sinon.assert.calledOnce(ctx.hookContext.warn);
-      Sinon.assert.calledOnce(ctx.opts.ux.confirm);
-      Sinon.assert.notCalled(ctx.migrateConfigStub);
     });
 
-  migrateTest
-    .do(() => mock({
+    await runMigrate(false);
+
+    sinon.assert.calledOnce(hookContext.warn);
+    sinon.assert.calledOnce(opts.ux.confirm);
+    sinon.assert.notCalled(migrateConfigStub);
+  });
+
+  it('should migrate all of the legacy config files if the user accepts', async () => {
+    mock({
       '.griffin-config.prod.json': '{}',
       '.griffin-config.staging.json': '{}',
       '.griffin-config.dev.json': '{}',
-    }))
-    .runMigrate(true)
-    .it('should migrate all of the legacy config files if the user accepts', async (ctx) => {
-      Sinon.assert.calledOnce(ctx.hookContext.warn);
-      Sinon.assert.calledOnce(ctx.opts.ux.confirm);
-
-      Sinon.assert.calledThrice(ctx.migrateConfigStub);
-      Sinon.assert.calledWith(ctx.migrateConfigStub, 'prod', undefined);
-      Sinon.assert.calledWith(ctx.migrateConfigStub, 'staging', undefined);
-      Sinon.assert.calledWith(ctx.migrateConfigStub, 'dev', undefined);
     });
 
-  migrateTest
-    .add('cwd', './test')
-    .do((ctx) => mock({
+    await runMigrate(true);
+
+    sinon.assert.calledOnce(hookContext.warn);
+    sinon.assert.calledOnce(opts.ux.confirm);
+
+    sinon.assert.calledThrice(migrateConfigStub);
+    sinon.assert.calledWith(migrateConfigStub, 'prod', undefined);
+    sinon.assert.calledWith(migrateConfigStub, 'staging', undefined);
+    sinon.assert.calledWith(migrateConfigStub, 'dev', undefined);
+  });
+
+  it('should only check the directory specified by the cwd flag', async () => {
+    mock({
       '.griffin-config.prod.json': '{}',
       './test/.griffin-config.prod.yaml': '{}',
-    }))
-    .do((ctx) => ctx.opts.flags.cwd = './test')
-    .it('should only check the directory specified by the cwd flag', async (ctx) => {
-      await migrate.call(ctx.hookContext, ctx.opts);
-
-      Sinon.assert.notCalled(ctx.hookContext.warn);
-      Sinon.assert.notCalled(ctx.opts.ux.confirm);
-      Sinon.assert.notCalled(ctx.migrateConfigStub);
     });
+    opts.flags.cwd = './test';
 
-  migrateTest
-    .it('should detect files in the directory specified by the cwd flag');
+    await migrate.call(hookContext, opts);
 
-  migrateTest
-    .do(() => mock({
+    sinon.assert.notCalled(hookContext.warn);
+    sinon.assert.notCalled(opts.ux.confirm);
+    sinon.assert.notCalled(migrateConfigStub);
+  });
+
+  it('should detect files in the directory specified by the cwd flag');
+
+  it('should log a warning if there is an error migrating a file', async () => {
+    mock({
       '.griffin-config.prod.json': '{}',
-    }))
-    .it('should log a warning if there is an error migrating a file', async (ctx) => {
-      ctx.opts.ux.confirm.resolves(true);
-      ctx.migrateConfigStub.rejects('uh-oh, an error');
-
-      await migrate.call(ctx.hookContext, ctx.opts);
-
-      Sinon.assert.calledTwice(ctx.hookContext.warn);
-      Sinon.assert.calledWith(ctx.hookContext.warn, Sinon.match('Could not convert ".griffin-config.prod.json": uh-oh, an error'));
     });
-})
+    opts.ux.confirm.resolves(true);
+    migrateConfigStub.rejects('uh-oh, an error');
+
+    await migrate.call(hookContext, opts);
+
+    sinon.assert.calledTwice(hookContext.warn);
+    sinon.assert.calledWith(hookContext.warn, sinon.match('Could not convert ".griffin-config.prod.json": uh-oh, an error'));
+  });
+});

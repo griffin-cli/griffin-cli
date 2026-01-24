@@ -1,67 +1,70 @@
-import { SinonStubbedInstance, SinonStub } from 'sinon';
+import { expect } from 'chai';
+import sinon, { SinonSandbox, SinonStubbedInstance } from 'sinon';
+import { runCommand } from '@oclif/test';
+import { readFile, unlink } from 'fs/promises';
 
 import Export from '../../src/commands/export.js';
-import test from '../helpers/register.js';
-import { expect } from '@oclif/test';
-import mock from 'mock-fs';
-import { readFile, unlink } from 'fs/promises';
-import { resolve } from 'path';
+import { ConfigFile } from '../../src/config/index.js';
 
 describe('export', () => {
-  const exportTest = test
-    .add('env', 'test')
-    .add('envVars', () => ({
-      TEST_STR: 'string',
-      TEST_BOOL: 'true',
-      TEST_NUMBER: '5',
-    }))
-    .do((ctx) => Export.configFile = ctx.configFile)
-    .finally(() => Export.configFile = undefined)
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'toParamDefinitions').returns({}))
-    .do((ctx) => ctx.sandbox.stub(Export, 'getEnvVars').resolves(ctx.envVars));
+  let sandbox: SinonSandbox;
+  let configFile: SinonStubbedInstance<ConfigFile>;
+  const envVars = {
+    TEST_STR: 'string',
+    TEST_BOOL: 'true',
+    TEST_NUMBER: '5',
+  };
 
-  exportTest
-    .commandWithContext((ctx) => ['export', '--format', 'json'])
-    .it('should print the env vars in JSON format', (ctx) => {
-      expect(ctx.stdout).to.equal(`${JSON.stringify(ctx.envVars)}\n`);
-    });
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    configFile = new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>;
+    Export.configFile = configFile;
+    sandbox.stub(configFile, 'toParamDefinitions').returns({});
+    sandbox.stub(Export, 'getEnvVars').resolves(envVars);
+  });
 
-  exportTest
-    .command(['export', '--format', 'dotenv'])
-    .it('should print the env vars in dotenv format', (ctx) => {
-      expect(ctx.stdout).to.equal(`TEST_STR=string
+  afterEach(() => {
+    Export.configFile = undefined;
+    sandbox.restore();
+  });
+
+  it('should print the env vars in JSON format', async () => {
+    const { stdout } = await runCommand(['export', '--format', 'json']);
+    expect(stdout).to.equal(`${JSON.stringify(envVars)}\n`);
+  });
+
+  it('should print the env vars in dotenv format', async () => {
+    const { stdout } = await runCommand(['export', '--format', 'dotenv']);
+    expect(stdout).to.equal(`TEST_STR=string
 TEST_BOOL=true
 TEST_NUMBER=5
 `);
-    });
+  });
 
-  exportTest
-    .command(['export', '--format', 'yaml'])
-    .it('should print the env vars in YAML format', (ctx) => {
-      expect(ctx.stdout).to.equal(`TEST_STR: string
+  it('should print the env vars in YAML format', async () => {
+    const { stdout } = await runCommand(['export', '--format', 'yaml']);
+    expect(stdout).to.equal(`TEST_STR: string
 TEST_BOOL: "true"
 TEST_NUMBER: "5"
 `);
-    });
+  });
 
-  exportTest
-    .command(['export', '--format', 'csv'])
-    .it('should print the env vars in CSV format', (ctx) => {
-      expect(ctx.stdout).to.equal(`TEST_STR,string
+  it('should print the env vars in CSV format', async () => {
+    const { stdout } = await runCommand(['export', '--format', 'csv']);
+    expect(stdout).to.equal(`TEST_STR,string
 TEST_BOOL,true
 TEST_NUMBER,5
 `);
-    });
+  });
 
-  exportTest
-    .add('filename', 'env.json')
-    // I spent a while trying to get the mock filesystem to work, but it interfered with oclif, so
-    // until I can revisit, will just use the underlying filesystem.
-    .finally((ctx) => unlink(ctx.filename))
-    .commandWithContext((ctx) => ['export', '--output', ctx.filename])
-    .it('should write the env vars to the file specified', async (ctx) => {
-      const fileContents = await readFile(ctx.filename);
-
-      expect(fileContents.toString()).to.equal(JSON.stringify(ctx.envVars));
-    });
+  it('should write the env vars to the file specified', async () => {
+    const filename = 'env.json';
+    try {
+      await runCommand(['export', '--output', filename]);
+      const fileContents = await readFile(filename);
+      expect(fileContents.toString()).to.equal(JSON.stringify(envVars));
+    } finally {
+      await unlink(filename);
+    }
+  });
 });

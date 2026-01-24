@@ -1,23 +1,36 @@
-import { Source } from '../../../src/config/index.js'
-import sinon from 'sinon'
-import SSMRemove from '../../../src/commands/ssm/remove.js'
-import { randomUUID } from 'crypto'
-import test from '../../helpers/register.js'
+import { expect } from 'chai';
+import sinon, { SinonSandbox, SinonStubbedInstance } from 'sinon';
+import { runCommand } from '@oclif/test';
+import { randomUUID } from 'crypto';
+
+import SSMRemove from '../../../src/commands/ssm/remove.js';
+import { ConfigFile, Source } from '../../../src/config/index.js';
 
 describe('ssm:remove', () => {
-  const removeTest = test
-    .do((ctx) => SSMRemove.configFile = ctx.configFile)
-    .finally(() => SSMRemove.configFile = undefined)
-    .add('name', () => randomUUID());
+  let sandbox: SinonSandbox;
+  let configFile: SinonStubbedInstance<ConfigFile>;
+  let paramName: string;
 
-  removeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'removeParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:remove', '--name', ctx.name])
-    .it('should remove the config and save the updated config to file', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.removeParamConfig);
-      sinon.assert.calledWith(ctx.configFile.removeParamConfig, Source.SSM, ctx.name);
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    configFile = new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>;
+    paramName = randomUUID();
+    SSMRemove.configFile = configFile;
+  });
 
-      sinon.assert.calledOnce(ctx.configFile.save);
-    });
+  afterEach(() => {
+    SSMRemove.configFile = undefined;
+    sandbox.restore();
+  });
+
+  it('should remove the config and save the updated config to file', async () => {
+    sandbox.stub(configFile, 'removeParamConfig').returns();
+    sandbox.stub(configFile, 'save').resolves();
+
+    await runCommand(['ssm:remove', '--name', paramName]);
+
+    sinon.assert.calledOnce(configFile.removeParamConfig);
+    sinon.assert.calledWith(configFile.removeParamConfig, Source.SSM, paramName);
+    sinon.assert.calledOnce(configFile.save);
+  });
 });

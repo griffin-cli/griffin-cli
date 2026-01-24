@@ -1,80 +1,104 @@
-import { expect } from '@oclif/test'
-
-import test from '../../../helpers/register.js';
+import { expect } from 'chai';
+import sinon, { SinonSandbox, SinonStubbedInstance } from 'sinon';
+import { runCommand } from '@oclif/test';
 import { randomUUID } from 'crypto';
+
 import SSMConfigGet from '../../../../src/commands/ssm/config/get.js';
-import { ParamConfig, Source } from '../../../../src/config/index.js';
+import { ConfigFile, ParamConfig, Source } from '../../../../src/config/index.js';
 
 describe('config:get', () => {
-  const getConfigTest = test
-    .add('name', () => `/griffin/test/${randomUUID()}`)
-    .add('paramConfig', (): ParamConfig => ({
+  let sandbox: SinonSandbox;
+  let configFile: SinonStubbedInstance<ConfigFile>;
+  let name: string;
+  let paramConfig: ParamConfig;
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    configFile = new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>;
+    name = `/griffin/test/${randomUUID()}`;
+    paramConfig = {
       version: '7',
       envVarName: 'TEST',
       allowMissingValue: true,
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').withArgs(Source.SSM, ctx.name).callsFake(() => ctx.paramConfig))
-    .do((ctx) => SSMConfigGet.configFile = ctx.configFile)
-    .finally(() => SSMConfigGet.configFile = undefined);
-
-  getConfigTest
-    .add('unknownName', randomUUID())
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.unknownName, '--all'])
-    .exit(1)
-    .it('should print an error if parameter does not exist in griffin', async (ctx) => {
-      expect(ctx.stderr).to.contain(`Parameter config not found: ${ctx.unknownName}`);
+    };
+    sandbox.stub(configFile, 'getParamConfig').callsFake((source, paramName) => {
+      if (source === Source.SSM && paramName === name) {
+        return paramConfig;
+      }
+      return undefined;
     });
+    SSMConfigGet.configFile = configFile;
+  });
 
-  getConfigTest
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--all'])
-    .it('should print the whole config if --all is specified', async (ctx) => {
-      expect(ctx.stdout.trim()).to.equal(JSON.stringify(ctx.paramConfig, undefined, 2));
-    });
+  afterEach(() => {
+    SSMConfigGet.configFile = undefined;
+    sandbox.restore();
+  });
 
-  getConfigTest
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'envVarName'])
-    .it('should print the environment variable name', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal(ctx.paramConfig.envVarName);
-    });
+  it('should print an error if parameter does not exist in griffin', async () => {
+    const unknownName = randomUUID();
 
-  getConfigTest
-    .do((ctx) => ctx.paramConfig.envVarName = undefined)
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'envVarName'])
-    .it('should print "not set" if the environment name is not set', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal('not set');
-    });
+    const { error, stderr } = await runCommand(['ssm:config:get', '--name', unknownName, '--all']);
 
-  getConfigTest
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'version'])
-    .it('should print the version', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal(ctx.paramConfig.version);
-    });
+    expect(error?.oclif?.exit).to.equal(1);
+    expect(stderr).to.contain(`Parameter config not found: ${unknownName}`);
+  });
 
-  getConfigTest
-    .do((ctx) => ctx.paramConfig.version = undefined)
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'version'])
-    .it('should print "latest" if the version is not locked', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal('latest');
-    });
+  it('should print the whole config if --all is specified', async () => {
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--all']);
 
-  getConfigTest
-    .do((ctx) => ctx.paramConfig.allowMissingValue = true)
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'allowMissingValue'])
-    .it('should print true if the parameter is allowed to be missing', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal('true');
-    });
+    expect(stdout.trim()).to.equal(JSON.stringify(paramConfig, undefined, 2));
+  });
 
-  getConfigTest
-    .do((ctx) => ctx.paramConfig.allowMissingValue = false)
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'allowMissingValue'])
-    .it('should print false if the parameter is not allowed to be missing', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal('false');
-    });
+  it('should print the environment variable name', async () => {
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'envVarName']);
 
-  getConfigTest
-    .do((ctx) => ctx.paramConfig.allowMissingValue = undefined)
-    .commandWithContext((ctx) => ['ssm:config:get', '--name', ctx.name, '--config-name', 'allowMissingValue'])
-    .it('should print false if allowMissingValue is not set at all', (ctx) => {
-      expect(ctx.stdout.trim()).to.equal('false');
-    });
-})
+    expect(stdout.trim()).to.equal(paramConfig.envVarName);
+  });
+
+  it('should print "not set" if the environment name is not set', async () => {
+    paramConfig.envVarName = undefined;
+
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'envVarName']);
+
+    expect(stdout.trim()).to.equal('not set');
+  });
+
+  it('should print the version', async () => {
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'version']);
+
+    expect(stdout.trim()).to.equal(paramConfig.version);
+  });
+
+  it('should print "latest" if the version is not locked', async () => {
+    paramConfig.version = undefined;
+
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'version']);
+
+    expect(stdout.trim()).to.equal('latest');
+  });
+
+  it('should print true if the parameter is allowed to be missing', async () => {
+    paramConfig.allowMissingValue = true;
+
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'allowMissingValue']);
+
+    expect(stdout.trim()).to.equal('true');
+  });
+
+  it('should print false if the parameter is not allowed to be missing', async () => {
+    paramConfig.allowMissingValue = false;
+
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'allowMissingValue']);
+
+    expect(stdout.trim()).to.equal('false');
+  });
+
+  it('should print false if allowMissingValue is not set at all', async () => {
+    paramConfig.allowMissingValue = undefined;
+
+    const { stdout } = await runCommand(['ssm:config:get', '--name', name, '--config-name', 'allowMissingValue']);
+
+    expect(stdout.trim()).to.equal('false');
+  });
+});

@@ -1,647 +1,423 @@
-import { expect, test } from '@oclif/test';
-import { mockClient } from 'aws-sdk-client-mock';
+import { expect } from "chai";
+import sinon, { SinonSandbox } from "sinon";
+import { mockClient, AwsClientStub } from "aws-sdk-client-mock";
+import {
+  DeleteParameterCommand,
+  GetParameterCommand,
+  GetParameterHistoryCommand,
+  GetParametersCommand,
+  ParameterHistory,
+  ParameterNotFound,
+  ParameterType,
+  ParameterVersionNotFound,
+  PutParameterCommand,
+  SSMClient,
+} from "@aws-sdk/client-ssm";
+import { randomUUID } from "crypto";
 
-import { DeleteParameterCommand, GetParameterCommand, GetParameterHistoryCommand, GetParametersCommand, ParameterHistory, ParameterNotFound, ParameterType, ParameterVersionNotFound, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { randomUUID } from 'crypto';
-import sinon from 'sinon';
-import { MissingRequiredParamError, ParameterNotFoundError, ParameterVersionNotFoundError } from '../../src/errors/index.js';
-import SSMStore from '../../src/store/ssm-store.js';
-import ParamDefinition from '../../src/types/param-definition.js';
+import {
+  MissingRequiredParamError,
+  ParameterNotFoundError,
+  ParameterVersionNotFoundError,
+} from "../../src/errors/index.js";
+import SSMStore from "../../src/store/ssm-store.js";
+import type { ParamDefinition } from "../../src/types/param-definition.js";
 
-describe('SSMStore', () => {
-  describe('Static Methods', () => {
-    describe('getEnvVarNameFromParamName', () => {
-      test.it('should work with a param without a prefix', () => {
-        expect(SSMStore.getEnvVarNameFromParamName('/test')).to.equal('TEST');
+describe("SSMStore", () => {
+  describe("Static Methods", () => {
+    describe("getEnvVarNameFromParamName", () => {
+      it("should work with a param without a prefix", () => {
+        expect(SSMStore.getEnvVarNameFromParamName("/test")).to.equal("TEST");
       });
 
-      test.it('should work with a name with a prefix', () => {
-        expect(SSMStore.getEnvVarNameFromParamName('/prefix/subprefix/test')).to.equal('TEST');
+      it("should work with a name with a prefix", () => {
+        expect(
+          SSMStore.getEnvVarNameFromParamName("/prefix/subprefix/test")
+        ).to.equal("TEST");
       });
     });
   });
 
-  describe('Instance Methods', () => {
-    let count = 0
-
-    const ssmStoreTest = test
-      .add('ssmClient', () => mockClient(SSMClient))
-      .finally((ctx) => ctx.ssmClient.restore())
-      .add('store', (ctx) => new SSMStore(ctx.ssmClient as unknown as SSMClient))
-      .add('paramName', () => `/griffin/test/ssmstore/${count++}`)
+  describe("Instance Methods", () => {
+    let ssmClient: AwsClientStub<SSMClient>;
+    let store: SSMStore;
+    let paramName: string;
+    let count = 0;
 
     const createRandomRecord = (
-      ctx: { paramName: string, paramVersion?: number },
+      ctx: { paramName: string; paramVersion?: number },
       {
-        type = 'SecureString',
+        type = "SecureString",
         value = randomUUID(),
-        version = Math.max(Math.floor(Math.random() * ((ctx.paramVersion ?? 100) - 1)), 1),
+        version = Math.max(
+          Math.floor(Math.random() * ((ctx.paramVersion ?? 100) - 1)),
+          1
+        ),
       }: {
-        type?: ParameterType,
-        value?: string,
-        version?: number,
+        type?: ParameterType;
+        value?: string;
+        version?: number;
       } = {}
     ): ParameterHistory => ({
       Name: ctx.paramName,
       Type: type,
       Value: value,
       Version: version,
-      LastModifiedDate: new Date(Date.now() - Math.floor(Math.random() * 3.15576e+10)),
-      LastModifiedUser: 'c1moore',
+      LastModifiedDate: new Date(
+        Date.now() - Math.floor(Math.random() * 3.15576e10)
+      ),
+      LastModifiedUser: "c1moore",
     });
 
-    const createRandomRecords = (ctx: { paramName: string, paramVersion?: number }, count: number): ParameterHistory[] => {
+    const createRandomRecords = (
+      ctx: { paramName: string; paramVersion?: number },
+      recordCount: number
+    ): ParameterHistory[] => {
       const records: ParameterHistory[] = [];
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < recordCount; i++) {
         records.push(createRandomRecord(ctx));
       }
-
       return records;
     };
 
-    describe('delete', () => {
-      ssmStoreTest
-        .do((ctx) => {
-          ctx.ssmClient.on(DeleteParameterCommand).resolves({});
-        })
-        .do((ctx) => ctx.store.delete(ctx.paramName))
-        .do((ctx) => {
-          sinon.assert.calledOnce(ctx.ssmClient.send)
-          expect(ctx.ssmClient.commandCalls(DeleteParameterCommand, {
-            Name: ctx.paramName,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should delete the parameter');
-
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(DeleteParameterCommand).rejects(new ParameterNotFound({
-          $metadata: {},
-          message: '',
-        })))
-        .do((ctx) => ctx.store.delete(ctx.paramName))
-        .do((ctx) => {
-          sinon.assert.calledOnce(ctx.ssmClient.send)
-          expect(ctx.ssmClient.commandCalls(DeleteParameterCommand, {
-            Name: ctx.paramName,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should not fail if the parameter does not exist')
-
-      ssmStoreTest
-        .add('errorMsg', 'A different type of error.')
-        .do((ctx) => ctx.ssmClient.on(DeleteParameterCommand).rejects(ctx.errorMsg))
-        .it('should rethrow the original error if the error is not a ParameterNotFound exception', async (ctx) => {
-          await expect(ctx.store.delete(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg);
-
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-        });
+    beforeEach(() => {
+      ssmClient = mockClient(SSMClient);
+      store = new SSMStore(ssmClient as unknown as SSMClient);
+      paramName = `/griffin/test/ssmstore/${count++}`;
     });
 
-    describe('getEnvVars', () => {
-      ssmStoreTest
-        .add('envVarName', 'ENV_VAR')
-        .add('paramValue', 'value')
-        .add('paramDefinitions', (ctx) => [{
-          id: ctx.paramName,
-          envVarName: ctx.envVarName,
-        }] as ParamDefinition[])
-        .do(ctx => ctx.ssmClient.on(
-          GetParametersCommand,
-          {
-            Names: [ctx.paramName],
-            WithDecryption: true,
-          },
-        ).resolves({
-          Parameters: [{
-            Name: ctx.paramName,
-            Value: ctx.paramValue,
-          }],
-        }))
-        .do(ctx => expect(ctx.store.getEnvVars(ctx.paramDefinitions)).to.eventually.deep.equal([{
-          name: ctx.envVarName,
-          value: ctx.paramValue,
-        }]))
-        .it('should return the key/value pair populated correctly');
+    afterEach(() => {
+      ssmClient.restore();
+    });
 
-      ssmStoreTest
-        .add('envVarName', 'ENV_VAR')
-        .add('paramValue', 'value')
-        .add('paramVersion', '5')
-        .do(ctx => ctx.ssmClient.on(
-          GetParametersCommand,
-          {
-            Names: [`${ctx.paramName}:${ctx.paramVersion}`],
-            WithDecryption: true,
-          },
-        ).resolves({
-          Parameters: [{
-            Name: ctx.paramName,
-            Value: ctx.paramValue,
-          }]
-        }))
-        .do(ctx => expect(ctx.store.getEnvVars([{
-          id: ctx.paramName,
-          version: ctx.paramVersion,
-          envVarName: ctx.envVarName,
-        }])))
-        .it('should fetch the version');
+    describe("delete", () => {
+      it("should delete the parameter", async () => {
+        ssmClient.on(DeleteParameterCommand).resolves({});
 
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(
-          GetParametersCommand,
-        ).callsFake((cmd) => ({
+        await store.delete(paramName);
+
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(DeleteParameterCommand, { Name: paramName })
+        ).to.have.length(1);
+      });
+
+      it("should not fail if the parameter does not exist", async () => {
+        ssmClient
+          .on(DeleteParameterCommand)
+          .rejects(new ParameterNotFound({ $metadata: {}, message: "" }));
+
+        await store.delete(paramName);
+
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(DeleteParameterCommand, { Name: paramName })
+        ).to.exist.and.have.length(1);
+      });
+
+      it("should rethrow the original error if the error is not a ParameterNotFound exception", async () => {
+        const errorMsg = "A different type of error.";
+        ssmClient.on(DeleteParameterCommand).rejects(errorMsg);
+
+        await expect(store.delete(paramName)).to.be.rejectedWith(errorMsg);
+      });
+    });
+
+    describe("getEnvVars", () => {
+      it("should return the key/value pair populated correctly", async () => {
+        const envVarName = "ENV_VAR";
+        const paramValue = "value";
+        ssmClient
+          .on(GetParametersCommand, {
+            Names: [paramName],
+            WithDecryption: true,
+          })
+          .resolves({
+            Parameters: [{ Name: paramName, Value: paramValue }],
+          });
+
+        const result = await store.getEnvVars([
+          { id: paramName, envVarName },
+        ] as ParamDefinition[]);
+
+        expect(result).to.deep.equal([{ name: envVarName, value: paramValue }]);
+      });
+
+      it("should send the request in batches", async () => {
+        ssmClient.on(GetParametersCommand).callsFake((cmd) => ({
           Parameters: cmd.Names.map((name: string) => ({
             Name: name,
             Value: randomUUID(),
-          }))
-        })))
-        .do(ctx => expect(ctx.store.getEnvVars([
-          '1',
-          '2',
-          '3',
-          '4',
-          '5',
-          '6',
-          '7',
-          '8',
-          '9',
-          '10',
-          '11',
-          '12',
-          '13',
-          '14',
-          '15',
-        ].map((i) => ({
-          id: `/${i}`,
-          envVarName: `VAR${i}`,
-        })))).to.eventually.have.length(15))
-        .do(ctx => sinon.assert.calledTwice(ctx.ssmClient.send))
-        .it('should send the request in batches')
-
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(
-          GetParametersCommand,
-          {
-            Names: [ctx.paramName],
-          },
-        ).resolves({
-          InvalidParameters: [ctx.paramName],
-        }))
-        .do(ctx => expect(ctx.store.getEnvVars([{
-          id: ctx.paramName,
-          envVarName: 'ENV_VAR',
-          allowMissingValue: true,
-        }])).to.eventually.deep.equal([]))
-        .it('should not throw an error if an optional parameter is missing');
-
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(
-          GetParametersCommand,
-          {
-            Names: [ctx.paramName],
-          },
-        ).resolves({
-          InvalidParameters: [ctx.paramName],
-        }))
-        .do(ctx => expect(ctx.store.getEnvVars([{
-          id: ctx.paramName,
-          envVarName: 'ENV_VAR',
-        }])).to.be.rejectedWith(MissingRequiredParamError))
-        .it('should throw an error if a required parameter is missing');
-    });
-
-    describe('getHistory', () => {
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(GetParameterHistoryCommand).resolves({}))
-        .it('should return an empty array if there are no parameters in the response', async (ctx) => expect(ctx.store.getHistory(ctx.paramName)).to.eventually.deep.equal([]));
-
-      ssmStoreTest
-        .add('count', 50)
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: ctx.count,
-            NextToken: undefined,
-          },
-        ).resolves({
-          Parameters: createRandomRecords(ctx, 50),
-        }))
-        .do(async (ctx) => {
-          const res = await ctx.store.getHistory(ctx.paramName);
-
-          expect(res).to.have.length(ctx.count);
-
-          let prevVersion = Infinity;
-          res.forEach((record) => {
-            expect(record.version).to.exist;
-
-            const version = parseInt(record.version!, 10);
-            expect(version).to.be.lessThanOrEqual(prevVersion);
-            prevVersion = version;
-          });
-        })
-        .do(ctx => sinon.assert.calledOnce(ctx.ssmClient.send))
-        .it('should return the history of the parameter sorted by most recent first')
-
-      ssmStoreTest
-        .add('count', 100)
-        .add('nextToken', randomUUID())
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: 50,
-            NextToken: ctx.nextToken,
-          },
-        ).resolves({
-          Parameters: createRandomRecords(ctx, 50),
-        }))
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: 50,
-            NextToken: undefined,
-          },
-        ).resolves({
-          NextToken: ctx.nextToken,
-          Parameters: createRandomRecords(ctx, 50),
-        }))
-        .do(async (ctx) => {
-          const res = await ctx.store.getHistory(ctx.paramName);
-
-          expect(res).to.have.length(ctx.count);
-
-          let prevVersion = Infinity;
-          res.forEach((record) => {
-            expect(record.version).to.exist;
-
-            const version = parseInt(record.version!, 10);
-            expect(version).to.be.lessThanOrEqual(prevVersion);
-            prevVersion = version;
-          });
-        })
-        .do(ctx => sinon.assert.calledTwice(ctx.ssmClient.send))
-        .it('should return the full history if the results are paginated')
-
-      ssmStoreTest
-        .add('count', 5)
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: ctx.count,
-            NextToken: undefined,
-          },
-        ).resolves({
-          Parameters: createRandomRecords(ctx, 5),
-        }))
-        .do((ctx) => expect(ctx.store.getHistory(ctx.paramName, ctx.count)).to.eventually.have.length(ctx.count))
-        .do(ctx => sinon.assert.calledOnce(ctx.ssmClient.send))
-        .it('should only return the number of records requested');
-
-      ssmStoreTest
-        .add('count', 55)
-        .add('nextToken', randomUUID())
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: 5,
-            NextToken: ctx.nextToken,
-          },
-        ).resolves({
-          Parameters: createRandomRecords(ctx, ctx.count - 50),
-        }))
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            WithDecryption: true,
-            MaxResults: 50,
-            NextToken: undefined,
-          },
-        ).resolves({
-          Parameters: createRandomRecords(ctx, 50),
-          NextToken: ctx.nextToken,
-        }))
-        .do(ctx => expect(ctx.store.getHistory(ctx.paramName, ctx.count)).to.eventually.have.length(55))
-        .do(ctx => sinon.assert.calledTwice(ctx.ssmClient.send))
-        .it('should return as many records as specified if more than the batch size is requested');
-    });
-
-    describe('getCurrentVersion', () => {
-      ssmStoreTest
-        .add('currentVersion', () => 5)
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand).resolves({
-          Parameter: {
-            Version: ctx.currentVersion,
-          },
-        }))
-        .do(ctx => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.eventually.equal(`${ctx.currentVersion}`))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(GetParameterCommand, {
-            Name: ctx.paramName,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should return the current version')
-
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand, {
-          Name: ctx.paramName,
-        }).rejects(new ParameterNotFound({
-          $metadata: {},
-          message: '',
-        })))
-        .do(ctx => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError))
-        .it('should throw a ParameterNotFoundError if the parameter could not be found')
-
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand, {
-          Name: ctx.paramName,
-        }).resolves({
-          Parameter: {},
-        }))
-        .it('should throw a ParameterNotFoundError if the version is not set', async (ctx) => {
-          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
-        });
-
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).resolves({}))
-        .it('should throw a ParameterNotFoundError if the parameter is not set', async (ctx) => {
-          await expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
-        });
-
-      ssmStoreTest
-        .add('errorMsg', 'Something bad happened.')
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).rejects(ctx.errorMsg))
-        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getCurrentVersion(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
-    });
-
-    describe('getParamRecord', () => {
-      const paramRecordTest = ssmStoreTest
-        .add('paramVersion', () => 55)
-        .add('paramHistory', (ctx) => createRandomRecord(ctx, {
-          version: ctx.paramVersion,
-        }))
-        .add('paramRecord', (ctx) => ({
-          name: ctx.paramName,
-          value: ctx.paramHistory.Value,
-          version: `${ctx.paramVersion}`,
-          modifiedAt: ctx.paramHistory.LastModifiedDate,
-          modifiedBy: ctx.paramHistory.LastModifiedUser,
+          })),
         }));
 
-      paramRecordTest
-        .do(ctx => ctx.ssmClient.on(GetParameterHistoryCommand).resolves({
-          Parameters: [
-            ...createRandomRecords(ctx, 3),
-            ctx.paramHistory,
-            ...createRandomRecords(ctx, 4),
-          ]
-        }))
-        .do((ctx) => expect(ctx.store.getParamRecord(ctx.paramName, `${ctx.paramVersion}`)).to.eventually.deep.equal(ctx.paramRecord))
-        .do((ctx) => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(GetParameterHistoryCommand, {
-            Name: ctx.paramName,
+        const params = Array.from({ length: 15 }, (_, i) => ({
+          id: `/${i + 1}`,
+          envVarName: `VAR${i + 1}`,
+        }));
+
+        const result = await store.getEnvVars(params as ParamDefinition[]);
+
+        expect(result).to.have.length(15);
+        sinon.assert.calledTwice(ssmClient.send);
+      });
+
+      it("should not throw an error if an optional parameter is missing", async () => {
+        ssmClient.on(GetParametersCommand, { Names: [paramName] }).resolves({
+          InvalidParameters: [paramName],
+        });
+
+        const result = await store.getEnvVars([
+          { id: paramName, envVarName: "ENV_VAR", allowMissingValue: true },
+        ] as ParamDefinition[]);
+
+        expect(result).to.deep.equal([]);
+      });
+
+      it("should throw an error if a required parameter is missing", async () => {
+        ssmClient.on(GetParametersCommand, { Names: [paramName] }).resolves({
+          InvalidParameters: [paramName],
+        });
+
+        await expect(
+          store.getEnvVars([
+            { id: paramName, envVarName: "ENV_VAR" },
+          ] as ParamDefinition[])
+        ).to.be.rejectedWith(MissingRequiredParamError);
+      });
+    });
+
+    describe("getHistory", () => {
+      it("should return an empty array if there are no parameters in the response", async () => {
+        ssmClient.on(GetParameterHistoryCommand).resolves({});
+
+        const result = await store.getHistory(paramName);
+
+        expect(result).to.deep.equal([]);
+      });
+
+      it("should return the history of the parameter sorted by most recent first", async () => {
+        const records = createRandomRecords({ paramName }, 50);
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
             WithDecryption: true,
             MaxResults: 50,
             NextToken: undefined,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should return the parameter record for the specified version');
+          })
+          .resolves({ Parameters: records });
 
-      paramRecordTest
-        .do(ctx => ctx.ssmClient.on(GetParameterHistoryCommand).resolves({
-          NextToken: randomUUID(),
-          Parameters: [
-            ...createRandomRecords(ctx, 3),
-            ctx.paramHistory,
-            ...createRandomRecords(ctx, 4),
-          ]
-        }))
-        .do((ctx) => expect(ctx.store.getParamRecord(ctx.paramName, `${ctx.paramVersion}`)).to.eventually.deep.equal(ctx.paramRecord))
-        .do((ctx) => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-        })
-        .it('should not pull more records if it found the proper version');
+        const res = await store.getHistory(paramName);
 
-      paramRecordTest
-        .add('nextToken', randomUUID())
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-            NextToken: ctx.nextToken,
-          },
-        ).resolves({
-          NextToken: undefined,
+        expect(res).to.have.length(50);
+        let prevVersion = Infinity;
+        res.forEach((record) => {
+          expect(record.version).to.exist;
+          const version = parseInt(record.version!, 10);
+          expect(version).to.be.lessThanOrEqual(prevVersion);
+          prevVersion = version;
+        });
+      });
+
+      sinon.assert.calledOnce(ssmClient.send);
+    });
+
+    describe("getCurrentVersion", () => {
+      it("should return the current version", async () => {
+        const currentVersion = 5;
+        ssmClient
+          .on(GetParameterCommand)
+          .resolves({ Parameter: { Version: currentVersion } });
+
+        const result = await store.getCurrentVersion(paramName);
+
+        expect(result).to.equal(`${currentVersion}`);
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(GetParameterCommand, { Name: paramName })
+        ).to.exist.and.have.length(1);
+      });
+
+      it("should throw a ParameterNotFoundError if the parameter could not be found", async () => {
+        ssmClient
+          .on(GetParameterCommand, { Name: paramName })
+          .rejects(new ParameterNotFound({ $metadata: {}, message: "" }));
+
+        await expect(store.getCurrentVersion(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should throw a ParameterNotFoundError if the version is not set", async () => {
+        ssmClient
+          .on(GetParameterCommand, { Name: paramName })
+          .resolves({ Parameter: {} });
+
+        await expect(store.getCurrentVersion(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should rethrow an unknown error", async () => {
+        const errorMsg = "Something bad happened.";
+        ssmClient.on(GetParameterCommand).rejects(errorMsg);
+
+        await expect(store.getCurrentVersion(paramName)).to.be.rejectedWith(
+          errorMsg
+        );
+      });
+    });
+
+    describe("getParamRecord", () => {
+      it("should return the parameter record for the specified version", async () => {
+        const paramVersion = 55;
+        const paramHistory = createRandomRecord(
+          { paramName, paramVersion },
+          { version: paramVersion }
+        );
+        ssmClient.on(GetParameterHistoryCommand).resolves({
           Parameters: [
-            ...createRandomRecords(ctx, 4),
-            ctx.paramHistory,
+            ...createRandomRecords({ paramName, paramVersion }, 3),
+            paramHistory,
+            ...createRandomRecords({ paramName, paramVersion }, 4),
           ],
-        }))
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
+        });
+
+        const result = await store.getParamRecord(paramName, `${paramVersion}`);
+
+        expect(result).to.deep.equal({
+          name: paramName,
+          value: paramHistory.Value,
+          version: `${paramVersion}`,
+          modifiedAt: paramHistory.LastModifiedDate,
+          modifiedBy: paramHistory.LastModifiedUser,
+        });
+
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: 50,
             NextToken: undefined,
-          },
-        ).resolves({
-          NextToken: ctx.nextToken,
-          Parameters: createRandomRecords(ctx, 50),
-        }))
-        .do((ctx) => expect(ctx.store.getParamRecord(ctx.paramName, `${ctx.paramVersion}`)).to.eventually.deep.equal(ctx.paramRecord))
-        .do((ctx) => {
-          sinon.assert.calledTwice(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(GetParameterHistoryCommand, {
-            Name: ctx.paramName,
-            NextToken: ctx.nextToken,
-          }));
-        })
-        .it('should continue fetching records until it finds the desired version');
+          })
+        ).to.exist.and.have.length(1);
+      });
 
-      paramRecordTest
-        .do(ctx => ctx.ssmClient.on(
-          GetParameterHistoryCommand,
-          {
-            Name: ctx.paramName,
-          },
-        ).resolves({
+      it("should throw a ParameterVersionNotFoundError if the version could not be found", async () => {
+        const paramVersion = 55;
+        ssmClient.on(GetParameterHistoryCommand, { Name: paramName }).resolves({
           NextToken: undefined,
-          Parameters: createRandomRecords(ctx, 10),
-        }))
-        .do(ctx => expect(ctx.store.getParamRecord(ctx.paramName, `${ctx.paramVersion}`)).to.be.rejectedWith(ParameterVersionNotFoundError))
-        .it('should throw a ParameterVersionNotFoundError if the version could not be found');
-    });
-
-    describe('getParamValue', () => {
-      ssmStoreTest
-        .add('paramValue', () => `${count}`)
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand, {
-          Name: ctx.paramName,
-          WithDecryption: true,
-        }).resolves({
-          Parameter: {
-            Value: ctx.paramValue,
-          },
-        }))
-        .do(ctx => expect(ctx.store.getParamValue(ctx.paramName)).to.eventually.equal(ctx.paramValue))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(GetParameterCommand, {
-            Name: ctx.paramName,
-            WithDecryption: true,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should return the parameter')
-
-      ssmStoreTest
-        .add('paramValue', () => `${count}`)
-        .add('paramVersion', () => count + 1)
-        .add('ssmName', (ctx) => `${ctx.paramName}:${ctx.paramVersion}`)
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand, {
-          Name: ctx.ssmName,
-          WithDecryption: true
-        }).resolves({
-          Parameter: {
-            Value: ctx.paramValue,
-          },
-        }))
-        .do(ctx => expect(ctx.store.getParamValue(ctx.paramName, `${ctx.paramVersion}`)).to.eventually.equal(ctx.paramValue))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(GetParameterCommand, {
-            Name: ctx.ssmName,
-            WithDecryption: true,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should return the parameter using the right version')
-
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand).rejects(new ParameterNotFound({
-          $metadata: {},
-          message: '',
-        })))
-        .do(ctx => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError))
-        .it('should throw a ParameterNotFoundError if the parameter does not exist');
-
-      ssmStoreTest
-        .do(ctx => ctx.ssmClient.on(GetParameterCommand).rejects(new ParameterVersionNotFound({
-          $metadata: {},
-          message: '',
-        })))
-        .do(ctx => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterVersionNotFoundError))
-        .it('should throw a ParameterVersionNotFoundError if the parameter version does not exist');
-
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand, {
-          Name: ctx.paramName,
-        }).resolves({
-          Parameter: {},
-        }))
-        .it('should throw a ParameterNotFoundError if the version is not set', async (ctx) => {
-          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
+          Parameters: createRandomRecords({ paramName, paramVersion }, 10),
         });
 
-      ssmStoreTest
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).resolves({}))
-        .it('should throw a ParameterNotFoundError if the parameter is not set', async (ctx) => {
-          await expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ParameterNotFoundError);
-        });
-
-      ssmStoreTest
-        .add('errorMsg', 'Something bad happened.')
-        .do((ctx) => ctx.ssmClient.on(GetParameterCommand).rejects(ctx.errorMsg))
-        .it('should rethrow an unknown error', async (ctx) => expect(ctx.store.getParamValue(ctx.paramName)).to.be.rejectedWith(ctx.errorMsg));
+        await expect(
+          store.getParamRecord(paramName, `${paramVersion}`)
+        ).to.be.rejectedWith(ParameterVersionNotFoundError);
+      });
     });
 
-    describe('writeParam', () => {
-      const writeParamTest = ssmStoreTest
-        .add('paramValue', () => `${count}`)
-        .add('nextVersion', () => count + 1);
+    describe("getParamValue", () => {
+      it("should return the parameter", async () => {
+        const paramValue = `${count}`;
+        ssmClient
+          .on(GetParameterCommand, { Name: paramName, WithDecryption: true })
+          .resolves({
+            Parameter: { Value: paramValue },
+          });
 
-      writeParamTest
-        .do(ctx => ctx.ssmClient.on(PutParameterCommand, {
-          Name: ctx.paramName,
-          Value: ctx.paramValue,
-        }).resolves({
-          Version: ctx.nextVersion,
-        }))
-        .do(ctx => expect(ctx.store.writeParam({
-          name: ctx.paramName,
-          value: ctx.paramValue,
-        })).to.eventually.deep.equal({
-          updatedVersion: `${ctx.nextVersion}`,
-        }))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(PutParameterCommand, {
-            Name: ctx.paramName,
-            Value: ctx.paramValue,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should update the value and return the updated version')
+        const result = await store.getParamValue(paramName);
 
-      writeParamTest
-        .add('paramDescription', () => 'This is a parameter in SSM.')
-        .do(ctx => ctx.ssmClient.on(PutParameterCommand, {
-          Name: ctx.paramName,
-          Value: ctx.paramValue,
-          Description: ctx.paramDescription,
-        }).resolves({
-          Version: ctx.nextVersion,
-        }))
-        .do(ctx => expect(ctx.store.writeParam({
-          name: ctx.paramName,
-          value: ctx.paramValue,
-          description: ctx.paramDescription,
-        })).to.eventually.deep.equal({
-          updatedVersion: `${ctx.nextVersion}`,
-        }))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(PutParameterCommand, {
-            Name: ctx.paramName,
-            Value: ctx.paramValue,
-            Description: ctx.paramDescription,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should update the value and set the description')
+        expect(result).to.equal(paramValue);
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(GetParameterCommand, {
+            Name: paramName,
+            WithDecryption: true,
+          })
+        ).to.exist.and.have.length(1);
+      });
 
-      writeParamTest
-        .add('paramType', (): ParameterType => 'SecureString')
-        .do(ctx => ctx.ssmClient.on(PutParameterCommand, {
-          Name: ctx.paramName,
-          Value: ctx.paramValue,
-          Type: ctx.paramType,
-        }).resolves({
-          Version: ctx.nextVersion,
-        }))
-        .do(ctx => expect(ctx.store.writeParam({
-          name: ctx.paramName,
-          value: ctx.paramValue,
-          type: ctx.paramType,
-        })).to.eventually.deep.equal({
-          updatedVersion: `${ctx.nextVersion}`,
-        }))
-        .do(ctx => {
-          sinon.assert.calledOnce(ctx.ssmClient.send);
-          expect(ctx.ssmClient.commandCalls(PutParameterCommand, {
-            Name: ctx.paramName,
-            Value: ctx.paramValue,
-            Type: ctx.paramType,
-          })).to.exist.and.have.length(1);
-        })
-        .it('should update the value and set the parameter type')
+      it("should throw a ParameterNotFoundError if the parameter does not exist", async () => {
+        ssmClient
+          .on(GetParameterCommand)
+          .rejects(new ParameterNotFound({ $metadata: {}, message: "" }));
+
+        await expect(store.getParamValue(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should throw a ParameterVersionNotFoundError if the parameter version does not exist", async () => {
+        ssmClient
+          .on(GetParameterCommand)
+          .rejects(
+            new ParameterVersionNotFound({ $metadata: {}, message: "" })
+          );
+
+        await expect(store.getParamValue(paramName)).to.be.rejectedWith(
+          ParameterVersionNotFoundError
+        );
+      });
+    });
+
+    describe("writeParam", () => {
+      it("should update the value and return the updated version", async () => {
+        const paramValue = `${count}`;
+        const nextVersion = count + 1;
+        ssmClient
+          .on(PutParameterCommand, { Name: paramName, Value: paramValue })
+          .resolves({
+            Version: nextVersion,
+          });
+
+        const result = await store.writeParam({
+          name: paramName,
+          value: paramValue,
+        });
+
+        expect(result).to.deep.equal({ updatedVersion: `${nextVersion}` });
+
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(PutParameterCommand, {
+            Name: paramName,
+            Value: paramValue,
+          })
+        ).to.exist.and.have.length(1);
+      });
+
+      it("should update the value and set the description", async () => {
+        const paramValue = `${count}`;
+        const paramDescription = "This is a parameter in SSM.";
+        const nextVersion = count + 1;
+        ssmClient
+          .on(PutParameterCommand, {
+            Name: paramName,
+            Value: paramValue,
+            Description: paramDescription,
+          })
+          .resolves({
+            Version: nextVersion,
+          });
+
+        const result = await store.writeParam({
+          name: paramName,
+          value: paramValue,
+          description: paramDescription,
+        });
+
+        expect(result).to.deep.equal({ updatedVersion: `${nextVersion}` });
+
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(PutParameterCommand, {
+            Name: paramName,
+            Value: paramValue,
+            Description: paramDescription,
+          })
+        ).to.exist.and.have.length(1);
+      });
     });
   });
-})
+});

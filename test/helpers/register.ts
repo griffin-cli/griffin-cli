@@ -1,58 +1,46 @@
-import { test, command } from '@oclif/test';
-import { stdin } from 'mock-stdin';
-import sinon, { SinonStubbedInstance } from 'sinon';
-import { ConfigFile } from '../../src/config/index.js';
+import sinon, { SinonSandbox, SinonStubbedInstance } from "sinon";
+import { stdin as mockStdin, MockSTDIN } from "mock-stdin";
+import { ConfigFile } from "../../src/config/index.js";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export interface TestContext {
+  sandbox: SinonSandbox;
+  configFile: SinonStubbedInstance<ConfigFile>;
+  stdin: MockSTDIN;
+  _env: Record<string, string | undefined>;
+}
 
-export default test
-  .add('_griffin', {} as Record<string, unknown> & {
-    _env: Record<string, string | undefined>;
-  })
-  .add('configFile', () => new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>)
-  .add('sandbox', () => sinon.createSandbox())
-  .finally((ctx) => ctx.sandbox.restore())
-  .add('stdin', () => stdin())
-  .finally((ctx) => ctx.stdin.restore())
-  .register('commandWithContext', (cb: (ctx: any) => string[]) => ({
-    async run(ctx) {
-      const args = cb(ctx);
+export function createTestContext(): TestContext {
+  return {
+    sandbox: sinon.createSandbox(),
+    configFile: new (ConfigFile as unknown as {
+      new (): ConfigFile;
+    })() as SinonStubbedInstance<ConfigFile>,
+    stdin: mockStdin(),
+    _env: {},
+  };
+}
 
-      return command(args).run(ctx as any);
-    },
-  }))
-  .register('commandWithStdin', (cb: (ctx: any) => {
-    argv: string[];
-    input: string | string[];
-    delay?: number;
-  }) => ({
-    async run(ctx) {
-      const { argv, input, delay } = cb(ctx);
-      const $run = command(argv).run(ctx as any);
+export function cleanupTestContext(ctx: TestContext): void {
+  ctx.sandbox.restore();
+  ctx.stdin.restore();
+  restoreEnv(ctx);
+}
 
-      await sleep(delay ?? 500);
-      ctx.stdin.send(input).end();
-      await sleep(10);
+export function setEnv(ctx: TestContext, name: string, value: string): void {
+  ctx._env[name] = process.env[name];
+  process.env[name] = value;
+}
 
-      return $run;
-    },
-  }))
-  .register('setEnv', (envVarName: string, envVarValue: string) => ({
-    async run(ctx) {
-      ctx._griffin = ctx._griffin || {};
-      ctx._griffin._env = ctx._griffin._env || {};
-      ctx._griffin._env[envVarName] = process.env[envVarName];
+export function restoreEnv(ctx: TestContext): void {
+  for (const [name, value] of Object.entries(ctx._env)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+  ctx._env = {};
+}
 
-      process.env[envVarName] = envVarValue;
-    },
-    finally(ctx) {
-      if (!ctx._griffin?._env) {
-        return;
-      }
-
-      process.env[envVarName] = ctx._griffin._env[envVarName];
-      delete ctx._griffin._env[envVarName];
-    },
-  }))
-  .stdout()
-  .stderr()
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
