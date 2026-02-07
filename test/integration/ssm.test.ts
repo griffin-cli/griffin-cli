@@ -1,7 +1,6 @@
-import { stdin } from "mock-stdin";
 import yaml from "yaml";
 
-import test from "../helpers/register.js";
+import { runCommand } from "@oclif/test";
 import { randomUUID } from "crypto";
 import { expect } from "chai";
 import clearSSM from "../helpers/clear-ssm.js";
@@ -17,6 +16,7 @@ import {
 import { ConfigFile, Source } from "../../src/config/index.js";
 import EnvFile from "../../src/utils/envfile.js";
 import { resolve } from "path";
+import runCommandWithStdin from "../helpers/run-command-with-stdin.js";
 
 type FileSystemError = Error & {
   errno: number;
@@ -42,26 +42,35 @@ const doesFileExist = async (filepath: string): Promise<boolean> => {
 };
 
 describe("SSM", () => {
-  const ssmTest = test
-    .add("testDir", `.tmp_test/${randomUUID()}`)
-    .do((ctx) => mkdir(ctx.testDir, { recursive: true }))
-    .finally(() => rm(".tmp_test", { recursive: true, force: true }))
-    .do((ctx) => process.chdir(ctx.testDir))
-    .finally(() => process.chdir(resolve(process.cwd(), "../..")))
-    .do(() => clearSSM())
-    .setEnv("AWS_REGION", "us-east-1")
-    .setEnv("AWS_ACCESS_KEY_ID", "abc")
-    .setEnv("AWS_SECRET_ACCESS_KEY", "123")
-    .stdout()
-    .stderr()
-    .add("stdin", () => stdin())
-    .add("env", "test")
-    .finally((ctx) => ctx.stdin.restore())
-    .finally(() => clearTestScriptOutput())
-    .finally(() => clearSSM());
+  const testDir = `.tmp_test/${randomUUID()}`;
+  const envName = "test";
+  const originalEnv = {
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+  };
 
-  ssmTest
-    .add("prodConfig", () => ({
+  before(async () => {
+    await mkdir(testDir, { recursive: true });
+    process.chdir(testDir);
+    await clearSSM();
+    process.env.AWS_REGION = "us-east-1";
+    process.env.AWS_ACCESS_KEY_ID = "abc";
+    process.env.AWS_SECRET_ACCESS_KEY = "123";
+  });
+
+  after(async () => {
+    process.chdir(resolve(process.cwd(), "../.."));
+    await rm(".tmp_test", { recursive: true, force: true });
+    await clearTestScriptOutput();
+    await clearSSM();
+    process.env.AWS_REGION = originalEnv.AWS_REGION;
+    process.env.AWS_ACCESS_KEY_ID = originalEnv.AWS_ACCESS_KEY_ID;
+    process.env.AWS_SECRET_ACCESS_KEY = originalEnv.AWS_SECRET_ACCESS_KEY;
+  });
+
+  it("should migrate legacy config files", async () => {
+    const prodConfig = {
       [Source.SSM]: {
         [randomUUID()]: {
           version: 5,
@@ -71,8 +80,8 @@ describe("SSM", () => {
           envVarName: "TEST_2",
         },
       },
-    }))
-    .add("devConfig", () => ({
+    };
+    const devConfig = {
       [Source.SSM]: {
         [randomUUID()]: {
           version: 5,
@@ -82,398 +91,416 @@ describe("SSM", () => {
           envVarName: "TEST_2",
         },
       },
-    }))
-    .do((ctx) =>
-      writeFile(".griffin-config.prod.json", JSON.stringify(ctx.prodConfig))
-    )
-    .do((ctx) =>
-      writeFile(".griffin-config.dev.json", JSON.stringify(ctx.devConfig))
-    )
-    .commandWithStdin((ctx) => ({
-      argv: [
+    };
+
+    await writeFile(".griffin-config.prod.json", JSON.stringify(prodConfig));
+    await writeFile(".griffin-config.dev.json", JSON.stringify(devConfig));
+
+    await runCommandWithStdin(
+      [
         "ssm:create",
         "--env",
-        "test",
+        envName,
         "-n",
         `/test/${randomUUID()}`,
         "-v",
         "test",
       ],
-      input: "y",
-    }))
-    .it("should migrate legacy config files", async (ctx) => {
-      await expect(doesFileExist(".griffin-config.prod.json")).to.eventually.be
-        .false;
-      await expect(doesFileExist(".griffin-config.dev.json")).to.eventually.be
-        .false;
+      "y",
+      500
+    );
 
-      await expect(doesFileExist(".griffin-config.prod.yaml")).to.eventually.be
-        .true;
-      await expect(doesFileExist(".griffin-config.dev.yaml")).to.eventually.be
-        .true;
+    await expect(doesFileExist(".griffin-config.prod.json")).to.eventually.be
+      .false;
+    await expect(doesFileExist(".griffin-config.dev.json")).to.eventually.be
+      .false;
 
-      const prodData = await readFile(".griffin-config.prod.yaml", {
-        encoding: "utf8",
-      });
-      expect(yaml.parse(prodData)).to.deep.equal(ctx.prodConfig);
+    await expect(doesFileExist(".griffin-config.prod.yaml")).to.eventually.be
+      .true;
+    await expect(doesFileExist(".griffin-config.dev.yaml")).to.eventually.be
+      .true;
 
-      const devData = await readFile(".griffin-config.dev.yaml", {
-        encoding: "utf8",
-      });
-      expect(yaml.parse(devData)).to.deep.equal(ctx.devConfig);
+    const prodData = await readFile(".griffin-config.prod.yaml", {
+      encoding: "utf8",
     });
+    expect(yaml.parse(prodData)).to.deep.equal(prodConfig);
 
-  ssmTest
-    .commandWithContext((ctx) => [
+    const devData = await readFile(".griffin-config.dev.yaml", {
+      encoding: "utf8",
+    });
+    expect(yaml.parse(devData)).to.deep.equal(devConfig);
+  });
+
+  it("should print an error message if the env is invalid", async () => {
+    const { error, stderr } = await runCommand([
       "export",
       "--env",
       "inv@lid",
       "--format",
       "dotenv",
-    ])
-    .exit(1)
-    .it("should print an error message if the env is invalid", (ctx) => {
-      expect(ctx.stderr).to.contain(
-        'Environment must only contain alphanumeric characters and "_" or "-".'
-      );
-    });
+    ]);
 
-  ssmTest
-    .add("paramName", () => "/test/var")
-    .add("paramValue", () => randomUUID())
-    .commandWithContext((ctx) => [
+    expect(error?.oclif?.exit).to.equal(1);
+    expect(stderr).to.contain(
+      'Environment must only contain alphanumeric characters and "_" or "-".'
+    );
+  });
+
+  it("should print the updated value", async () => {
+    const paramName = "/test/var";
+    const paramValue = randomUUID();
+
+    await runCommand([
       "ssm:create",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.paramName,
+      paramName,
       "--value",
-      ctx.paramValue,
-    ])
-    .commandWithContext((ctx) => [
+      paramValue,
+    ]);
+
+    await runCommand([
       "ssm:read",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.paramName,
+      paramName,
       "--quiet",
-    ])
-    .do((ctx) =>
-      expect(ctx.stdout).to.match(new RegExp(`^${ctx.paramValue}$`, "m"))
-    )
-    .add("updatedParamValue", () => randomUUID())
-    .commandWithContext((ctx) => [
+    ]);
+
+    const updatedParamValue = randomUUID();
+
+    await runCommand([
       "ssm:update",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.paramName,
+      paramName,
       "--value",
-      ctx.updatedParamValue,
-    ])
-    .commandWithContext((ctx) => [
+      updatedParamValue,
+    ]);
+
+    const { stdout } = await runCommand([
       "ssm:read",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.paramName,
+      paramName,
       "--quiet",
-    ])
-    .do((ctx) =>
-      expect(ctx.stdout).to.match(new RegExp(`^${ctx.updatedParamValue}$`, "m"))
-    )
-    .it("should print the updated value");
+    ]);
 
-  ssmTest
-    .add("param1", () => ({
+    expect(stdout).to.match(new RegExp(`^${updatedParamValue}$`, "m"));
+  });
+
+  it("should export to dotenv format", async () => {
+    const param1 = {
       name: "/param/one",
       envVarName: "ONE",
       value: randomUUID(),
-    }))
-    .add("param2", () => ({
+    };
+    const param2 = {
       name: "/param/two",
       envVarName: "TWO",
       value: randomUUID(),
-    }))
-    .add("param3", () => ({
+    };
+    const param3 = {
       name: "/param/three",
       envVarName: "THREE",
       value: randomUUID(),
-    }))
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--env",
-      "test",
-      "--name",
-      ctx.param1.name,
-      "--env-var-name",
-      ctx.param1.envVarName,
-      "--value",
-      ctx.param1.value,
-    ])
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--env",
-      "test",
-      "--name",
-      ctx.param2.name,
-      "--env-var-name",
-      ctx.param2.envVarName,
-      "--value",
-      ctx.param2.value,
-    ])
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--env",
-      "test",
-      "--name",
-      ctx.param3.name,
-      "--env-var-name",
-      ctx.param3.envVarName,
-      "--value",
-      ctx.param3.value,
-    ])
-    .command(["export", "--env", "test", "--format", "dotenv"])
-    .it("should export to dotenv format", (ctx) => {
-      expect(ctx.stdout).to.match(
-        new RegExp(`^${ctx.param1.envVarName}=${ctx.param1.value}$`, "m")
-      );
-      expect(ctx.stdout).to.match(
-        new RegExp(`^${ctx.param2.envVarName}=${ctx.param2.value}$`, "m")
-      );
-      expect(ctx.stdout).to.match(
-        new RegExp(`^${ctx.param3.envVarName}=${ctx.param3.value}$`, "m")
-      );
-    });
+    };
 
-  ssmTest
-    .add("param1", () => ({
+    await runCommand([
+      "ssm:create",
+      "--env",
+      envName,
+      "--name",
+      param1.name,
+      "--env-var-name",
+      param1.envVarName,
+      "--value",
+      param1.value,
+    ]);
+    await runCommand([
+      "ssm:create",
+      "--env",
+      envName,
+      "--name",
+      param2.name,
+      "--env-var-name",
+      param2.envVarName,
+      "--value",
+      param2.value,
+    ]);
+    await runCommand([
+      "ssm:create",
+      "--env",
+      envName,
+      "--name",
+      param3.name,
+      "--env-var-name",
+      param3.envVarName,
+      "--value",
+      param3.value,
+    ]);
+
+    const { stdout } = await runCommand([
+      "export",
+      "--env",
+      envName,
+      "--format",
+      "dotenv",
+    ]);
+
+    expect(stdout).to.match(
+      new RegExp(`^${param1.envVarName}=${param1.value}$`, "m")
+    );
+    expect(stdout).to.match(
+      new RegExp(`^${param2.envVarName}=${param2.value}$`, "m")
+    );
+    expect(stdout).to.match(
+      new RegExp(`^${param3.envVarName}=${param3.value}$`, "m")
+    );
+  });
+
+  it("should execute the command", async () => {
+    const param1 = {
       name: "/param/one",
       envVarName: "ONE",
       value: randomUUID(),
-    }))
-    .add("param2", () => ({
+    };
+    const param2 = {
       name: "/param/two",
       envVarName: "TWO",
       value: randomUUID(),
-    }))
-    .add("param3", () => ({
+    };
+    const param3 = {
       name: "/param/three",
       envVarName: "THREE",
       value: randomUUID(),
-    }))
-    .commandWithContext((ctx) => [
+    };
+
+    await runCommand([
       "ssm:create",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.param1.name,
+      param1.name,
       "--env-var-name",
-      ctx.param1.envVarName,
+      param1.envVarName,
       "--value",
-      ctx.param1.value,
-    ])
-    .commandWithContext((ctx) => [
+      param1.value,
+    ]);
+    await runCommand([
       "ssm:create",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.param2.name,
+      param2.name,
       "--env-var-name",
-      ctx.param2.envVarName,
+      param2.envVarName,
       "--value",
-      ctx.param2.value,
-    ])
-    .commandWithContext((ctx) => [
+      param2.value,
+    ]);
+    await runCommand([
       "ssm:create",
       "--env",
-      "test",
+      envName,
       "--name",
-      ctx.param3.name,
+      param3.name,
       "--env-var-name",
-      ctx.param3.envVarName,
+      param3.envVarName,
       "--value",
-      ctx.param3.value,
-    ])
-    .commandWithContext((ctx) => [
+      param3.value,
+    ]);
+
+    await runCommand([
       "exec",
       "--env",
-      "test",
+      envName,
       "--skip-exit",
       "--",
       "../../test/integration/test-script.sh",
-      `--name=${ctx.param1.envVarName}`,
-      ctx.param2.envVarName,
-      `--name=${ctx.param3.envVarName}`,
-    ])
-    .it("should execute the command", async (ctx) => {
-      // This isn't great, but I can't find a way to guarantee the shell script has finished writing
-      // to the file by now.
+      `--name=${param1.envVarName}`,
+      param2.envVarName,
+      `--name=${param3.envVarName}`,
+    ]);
+
+    await sleep(5_000);
+
+    const output = (await readFile("./test-script-output.txt")).toString();
+
+    expect(output).to.match(new RegExp(`^${param1.value}$`, "m"));
+    expect(output).to.match(new RegExp(`^${param2.value}$`, "m"));
+    expect(output).to.match(new RegExp(`^${param3.value}$`, "m"));
+  });
+
+  it("should save the config to the config file in the cwd directory", async () => {
+    const cwd = "./cwd_test";
+    try {
+      const param1 = {
+        name: "/param/one",
+        envVarName: "ONE",
+        value: randomUUID(),
+      };
+
+      await runCommand([
+        "ssm:create",
+        "--cwd",
+        cwd,
+        "--env",
+        envName,
+        "--name",
+        param1.name,
+        "--env-var-name",
+        param1.envVarName,
+        "--value",
+        param1.value,
+      ]);
+
+      await runCommand([
+        "exec",
+        "--cwd",
+        cwd,
+        "--env",
+        envName,
+        "--skip-exit",
+        "--",
+        "../../test/integration/test-script.sh",
+        `--name=${param1.envVarName}`,
+      ]);
+
       await sleep(5_000);
 
+      const dirStats = await stat(resolve(process.cwd(), cwd));
+      expect(dirStats.isDirectory()).to.equal(true);
+
+      const fileStats = await stat(
+        resolve(process.cwd(), cwd, `.griffin-config.${envName}.yaml`)
+      );
+      expect(fileStats.isFile()).to.equal(true);
+
       const output = (await readFile("./test-script-output.txt")).toString();
+      expect(output).to.match(new RegExp(`^${param1.value}$`, "m"));
+    } finally {
+      await rm(resolve(process.cwd(), cwd), { recursive: true });
+    }
+  });
 
-      expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, "m"));
-      expect(output).to.match(new RegExp(`^${ctx.param2.value}$`, "m"));
-      expect(output).to.match(new RegExp(`^${ctx.param3.value}$`, "m"));
-    });
+  it("should not throw an error if the directory already exists", async () => {
+    const cwd = "./cwd_test";
+    try {
+      const param1 = {
+        name: "/param/one",
+        envVarName: "ONE",
+        value: randomUUID(),
+      };
+      const param2 = {
+        name: "/param/two",
+        envVarName: "TWO",
+        value: randomUUID(),
+      };
 
-  ssmTest
-    .add("cwd", () => "./cwd_test")
-    .finally((ctx) => rm(resolve(process.cwd(), ctx.cwd), { recursive: true }))
-    .add("param1", () => ({
-      name: "/param/one",
-      envVarName: "ONE",
-      value: randomUUID(),
-    }))
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--cwd",
-      ctx.cwd,
-      "--env",
-      ctx.env,
-      "--name",
-      ctx.param1.name,
-      "--env-var-name",
-      ctx.param1.envVarName,
-      "--value",
-      ctx.param1.value,
-    ])
-    .commandWithContext((ctx) => [
-      "exec",
-      "--cwd",
-      ctx.cwd,
-      "--env",
-      "test",
-      "--skip-exit",
-      "--",
-      "../../test/integration/test-script.sh",
-      `--name=${ctx.param1.envVarName}`,
-    ])
-    .it(
-      "should save the config to the config file in the cwd directory",
-      async (ctx) => {
-        await sleep(5_000);
+      await runCommand([
+        "ssm:create",
+        "--cwd",
+        cwd,
+        "--env",
+        envName,
+        "--name",
+        param1.name,
+        "--env-var-name",
+        param1.envVarName,
+        "--value",
+        param1.value,
+      ]);
+      await runCommand([
+        "ssm:create",
+        "--cwd",
+        cwd,
+        "--env",
+        envName,
+        "--name",
+        param2.name,
+        "--env-var-name",
+        param2.envVarName,
+        "--value",
+        param2.value,
+      ]);
 
-        const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
-        expect(dirStats.isDirectory()).to.equal(true);
+      await runCommand([
+        "exec",
+        "--cwd",
+        cwd,
+        "--env",
+        envName,
+        "--skip-exit",
+        "--",
+        "../../test/integration/test-script.sh",
+        `--name=${param1.envVarName}`,
+        param2.envVarName,
+      ]);
 
-        const fileStats = await stat(
-          resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.yaml`)
-        );
-        expect(fileStats.isFile()).to.equal(true);
+      await sleep(5_000);
 
-        const output = (await readFile("./test-script-output.txt")).toString();
-        expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, "m"));
-      }
-    );
+      const dirStats = await stat(resolve(process.cwd(), cwd));
+      expect(dirStats.isDirectory()).to.equal(true);
 
-  ssmTest
-    .add("cwd", () => "./cwd_test")
-    .finally((ctx) => rm(resolve(process.cwd(), ctx.cwd), { recursive: true }))
-    .add("param1", () => ({
-      name: "/param/one",
-      envVarName: "ONE",
-      value: randomUUID(),
-    }))
-    .add("param2", () => ({
-      name: "/param/two",
-      envVarName: "TWO",
-      value: randomUUID(),
-    }))
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--cwd",
-      ctx.cwd,
-      "--env",
-      ctx.env,
-      "--name",
-      ctx.param1.name,
-      "--env-var-name",
-      ctx.param1.envVarName,
-      "--value",
-      ctx.param1.value,
-    ])
-    .commandWithContext((ctx) => [
-      "ssm:create",
-      "--cwd",
-      ctx.cwd,
-      "--env",
-      ctx.env,
-      "--name",
-      ctx.param2.name,
-      "--env-var-name",
-      ctx.param2.envVarName,
-      "--value",
-      ctx.param2.value,
-    ])
-    .commandWithContext((ctx) => [
-      "exec",
-      "--cwd",
-      ctx.cwd,
-      "--env",
-      "test",
-      "--skip-exit",
-      "--",
-      "../../test/integration/test-script.sh",
-      `--name=${ctx.param1.envVarName}`,
-      ctx.param2.envVarName,
-    ])
-    .it(
-      "should not throw an error if the directory already exists",
-      async (ctx) => {
-        await sleep(5_000);
+      const fileStats = await stat(
+        resolve(process.cwd(), cwd, `.griffin-config.${envName}.yaml`)
+      );
+      expect(fileStats.isFile()).to.equal(true);
 
-        const dirStats = await stat(resolve(process.cwd(), ctx.cwd));
-        expect(dirStats.isDirectory()).to.equal(true);
-
-        const fileStats = await stat(
-          resolve(process.cwd(), ctx.cwd, `.griffin-config.${ctx.env}.yaml`)
-        );
-        expect(fileStats.isFile()).to.equal(true);
-
-        const output = (await readFile("./test-script-output.txt")).toString();
-        expect(output).to.match(new RegExp(`^${ctx.param1.value}$`, "m"));
-        expect(output).to.match(new RegExp(`^${ctx.param2.value}$`, "m"));
-      }
-    );
+      const output = (await readFile("./test-script-output.txt")).toString();
+      expect(output).to.match(new RegExp(`^${param1.value}$`, "m"));
+      expect(output).to.match(new RegExp(`^${param2.value}$`, "m"));
+    } finally {
+      await rm(resolve(process.cwd(), cwd), { recursive: true });
+    }
+  });
 
   describe("import", () => {
     describe("dotenv", () => {
-      const dotEnvImportTest = ssmTest
-        .add("filename", () => `test-${randomUUID()}.env`)
-        .finally(async (ctx) => {
-          try {
-            await unlink(ctx.filename);
-          } catch (err) {
-            // Ignore an error here...
-          }
-        })
-        .add("prefix", () => `/griffin-test/${randomUUID()}`)
-        .add("params", () => ({
+      let filename: string;
+      let prefix: string;
+      let params: Record<string, string>;
+
+      beforeEach(async () => {
+        filename = `test-${randomUUID()}.env`;
+        prefix = `/griffin-test/${randomUUID()}`;
+        params = {
           URL: "https://www.google.com/?q=recursion",
           MULTILINE_ESCAPED: "line1\\nline2\\nline3",
           BOOL: "true",
           NUMBER: "42",
-        }))
-        .do(async (ctx) =>
-          writeFile(ctx.filename, EnvFile.stringify(ctx.params))
-        );
+        };
 
-      dotEnvImportTest
-        .commandWithContext((ctx) => [
+        await writeFile(filename, EnvFile.stringify(params));
+      });
+
+      afterEach(async () => {
+        try {
+          await unlink(filename);
+        } catch (err) {
+          // Ignore an error here...
+        }
+      });
+
+      it("should import dotenv files", async () => {
+        await runCommand([
           "ssm:import",
           "--env",
-          "test",
+          envName,
           "--from-dotenv",
-          ctx.filename,
+          filename,
           "--prefix",
-          ctx.prefix,
-        ])
-        .commandWithContext(() => [
+          prefix,
+        ]);
+
+        await runCommand([
           "exec",
           "--env",
-          "test",
+          envName,
           "--skip-exit",
           "--",
           "../../test/integration/test-script.sh",
@@ -481,381 +508,320 @@ describe("SSM", () => {
           "MULTILINE_ESCAPED",
           "BOOL",
           "NUMBER",
-        ])
-        .it("should import dotenv files", async (ctx) => {
-          await sleep(5_000);
+        ]);
 
-          const output = (
-            await readFile("./test-script-output.txt")
-          ).toString();
+        await sleep(5_000);
 
-          expect(output.trim()).to.equal(`${ctx.params.URL}
-${ctx.params.MULTILINE_ESCAPED}
-${ctx.params.BOOL}
-${ctx.params.NUMBER}`);
+        const output = (await readFile("./test-script-output.txt")).toString();
+
+        expect(output.trim()).to.equal(`${params.URL}
+${params.MULTILINE_ESCAPED}
+${params.BOOL}
+${params.NUMBER}`);
+      });
+
+      it("should lock the versions", async () => {
+        await runCommand([
+          "ssm:import",
+          "--env",
+          envName,
+          "--from-dotenv",
+          filename,
+          "--prefix",
+          prefix,
+        ]);
+
+        const configFile = await ConfigFile.loadConfig(envName);
+
+        Object.keys(params).forEach((paramName) => {
+          expect(
+            configFile.getParamConfig(Source.SSM, `${prefix}/${paramName}`)
+              ?.version
+          ).to.equal("1");
+        });
+      });
+
+      it("should work if the prefix does not start with a slash", async () => {
+        await runCommand([
+          "ssm:import",
+          "--env",
+          envName,
+          "--from-dotenv",
+          filename,
+          "--prefix",
+          prefix.replace(/^\//, ""),
+        ]);
+
+        const configFile = await ConfigFile.loadConfig(envName);
+
+        Object.keys(params).forEach((paramName) => {
+          expect(
+            configFile.getParamConfig(Source.SSM, `${prefix}/${paramName}`)
+          ).to.exist;
+        });
+      });
+
+      it("should work if the prefix ends with a slash", async () => {
+        await runCommand([
+          "ssm:import",
+          "--env",
+          envName,
+          "--from-dotenv",
+          filename,
+          "--prefix",
+          `${prefix}/`,
+        ]);
+
+        const configFile = await ConfigFile.loadConfig(envName);
+
+        Object.keys(params).forEach((paramName) => {
+          expect(
+            configFile.getParamConfig(Source.SSM, `${prefix}/${paramName}`)
+          ).to.exist;
+        });
+      });
+
+      it("should not fail if a parameter already exists", async () => {
+        await addParam({
+          name: `${prefix}/URL`,
+          value: "https://bing.com/",
         });
 
-      dotEnvImportTest
-        .commandWithContext((ctx) => [
+        const { stderr } = await runCommand([
           "ssm:import",
           "--env",
-          "test",
+          envName,
           "--from-dotenv",
-          ctx.filename,
+          filename,
           "--prefix",
-          ctx.prefix,
-        ])
-        .it("should lock the versions", async (ctx) => {
-          const configFile = await ConfigFile.loadConfig("test");
+          prefix,
+        ]);
 
-          Object.keys(ctx.params).forEach((paramName) => {
-            expect(
-              configFile.getParamConfig(
-                Source.SSM,
-                `${ctx.prefix}/${paramName}`
-              )?.version
-            ).to.equal("1");
-          });
+        expect(stderr).to.include("Failed to import");
+      });
+
+      it("should overwrite parameters if the overwrite flag is provided", async () => {
+        const overwrittenParam = `${prefix}/URL`;
+
+        await addParam({
+          name: overwrittenParam,
+          value: "https://bing.com/",
         });
 
-      dotEnvImportTest
-        .commandWithContext((ctx) => [
+        await runCommand([
           "ssm:import",
           "--env",
-          "test",
+          envName,
           "--from-dotenv",
-          ctx.filename,
+          filename,
           "--prefix",
-          ctx.prefix.replace(/^\//, ""),
-        ])
-        .it(
-          "should work if the prefix does not start with a slash",
-          async (ctx) => {
-            const configFile = await ConfigFile.loadConfig("test");
-
-            Object.keys(ctx.params).forEach((paramName) => {
-              expect(
-                configFile.getParamConfig(
-                  Source.SSM,
-                  `${ctx.prefix}/${paramName}`
-                )
-              ).to.exist;
-            });
-          }
-        );
-
-      dotEnvImportTest
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          "test",
-          "--from-dotenv",
-          ctx.filename,
-          "--prefix",
-          `${ctx.prefix}/`,
-        ])
-        .it("should work if the prefix ends with a slash", async (ctx) => {
-          const configFile = await ConfigFile.loadConfig("test");
-
-          Object.keys(ctx.params).forEach((paramName) => {
-            expect(
-              configFile.getParamConfig(
-                Source.SSM,
-                `${ctx.prefix}/${paramName}`
-              )
-            ).to.exist;
-          });
-        });
-
-      dotEnvImportTest
-        .do((ctx) =>
-          addParam({
-            name: `${ctx.prefix}/URL`,
-            value: "https://bing.com/",
-          })
-        )
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          "test",
-          "--from-dotenv",
-          ctx.filename,
-          "--prefix",
-          ctx.prefix,
-        ])
-        .it("should not fail if a parameter already exists", (ctx) => {
-          expect(ctx.stderr).to.include("Failed to import");
-        });
-
-      dotEnvImportTest
-        .add("overwrittenParam", (ctx) => `${ctx.prefix}/URL`)
-        .do((ctx) =>
-          addParam({
-            name: ctx.overwrittenParam,
-            value: "https://bing.com/",
-          })
-        )
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          "test",
-          "--from-dotenv",
-          ctx.filename,
-          "--prefix",
-          ctx.prefix,
+          prefix,
           "--overwrite",
-        ])
-        .commandWithContext(() => [
+        ]);
+
+        await runCommand([
           "exec",
           "--env",
-          "test",
+          envName,
           "--skip-exit",
           "--",
           "../../test/integration/test-script.sh",
           "URL",
-        ])
-        .it(
-          "should overwrite parameters if the overwrite flag is provided",
-          async (ctx) => {
-            const configFile = await ConfigFile.loadConfig("test");
+        ]);
 
-            expect(
-              configFile.getParamConfig(Source.SSM, ctx.overwrittenParam)
-                ?.version
-            ).to.equal("2");
+        const configFile = await ConfigFile.loadConfig(envName);
 
-            await sleep(5000);
+        expect(
+          configFile.getParamConfig(Source.SSM, overwrittenParam)?.version
+        ).to.equal("2");
 
-            const output = (
-              await readFile("./test-script-output.txt")
-            ).toString();
-            expect(output.trim()).to.equal(ctx.params.URL);
-          }
-        );
+        await sleep(5_000);
+
+        const output = (await readFile("./test-script-output.txt")).toString();
+        expect(output.trim()).to.equal(params.URL);
+      });
     });
 
     describe("ssm", () => {
-      const ssmImportTest = ssmTest
-        .add("env", "test")
-        .add("paramName", () => `/griffin-cli/test/${randomUUID()}`)
-        .add(
-          "ssmClient",
-          () =>
-            new SSMClient({
-              endpoint: process.env.GRIFFIN_AWS_SSM_ENDPOINT,
-            })
-        )
-        .do(async (ctx) => {
-          await ctx.ssmClient.send(
-            new PutParameterCommand({
-              Name: ctx.paramName,
-              Value: randomUUID(),
-              Type: "SecureString",
-              Overwrite: true,
-            })
-          );
-        })
-        .finally(async (ctx) => {
-          await ctx.ssmClient.send(
-            new DeleteParameterCommand({
-              Name: ctx.paramName,
-            })
-          );
+      let paramName: string;
+      let ssmClient: SSMClient;
+
+      beforeEach(async () => {
+        paramName = `/griffin-cli/test/${randomUUID()}`;
+        ssmClient = new SSMClient({
+          endpoint: process.env.GRIFFIN_AWS_SSM_ENDPOINT,
         });
 
-      ssmImportTest
-        .commandWithContext((ctx) => [
+        await ssmClient.send(
+          new PutParameterCommand({
+            Name: paramName,
+            Value: randomUUID(),
+            Type: "SecureString",
+            Overwrite: true,
+          })
+        );
+      });
+
+      afterEach(async () => {
+        await ssmClient.send(
+          new DeleteParameterCommand({
+            Name: paramName,
+          })
+        );
+      });
+
+      it("should log an error if the parameter does not exist", async () => {
+        const { error, stderr } = await runCommand([
           "ssm:import",
           "--env",
-          ctx.env,
+          envName,
           "-n",
           `/griffin-cli/test/${randomUUID()}`,
-        ])
-        .exit(1)
-        .it("should log an error if the parameter does not exist", (ctx) => {
-          expect(ctx.stderr.toLowerCase()).to.contain("parameter not found");
-        });
+        ]);
 
-      ssmImportTest
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          ctx.env,
-          "-n",
-          ctx.paramName,
-        ])
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          ctx.env,
-          "-n",
-          ctx.paramName,
-        ])
-        .exit(1)
-        .it(
-          "should log an error if the parameter has already been imported",
-          (ctx) => {
-            expect(ctx.stderr.toLowerCase()).to.contain(
-              "parameter already exists"
-            );
-          }
-        );
+        expect(error?.oclif?.exit).to.equal(1);
+        expect(stderr.toLowerCase()).to.contain("parameter not found");
+      });
 
-      ssmImportTest
-        .commandWithContext((ctx) => [
+      it("should log an error if the parameter has already been imported", async () => {
+        await runCommand(["ssm:import", "--env", envName, "-n", paramName]);
+
+        const { error, stderr } = await runCommand([
           "ssm:import",
           "--env",
-          ctx.env,
+          envName,
           "-n",
-          ctx.paramName,
+          paramName,
+        ]);
+
+        expect(error?.oclif?.exit).to.equal(1);
+        expect(stderr.toLowerCase()).to.contain("parameter already exists");
+      });
+
+      it("should import the parameter without locking the version", async () => {
+        await runCommand([
+          "ssm:import",
+          "--env",
+          envName,
+          "-n",
+          paramName,
           "--always-use-latest",
-        ])
-        .it(
-          "should import the parameter without locking the version",
-          async (ctx) => {
-            const configFile = await ConfigFile.loadConfig(ctx.env);
-            console.log(configFile);
+        ]);
 
-            expect(
-              configFile.getParamConfig(Source.SSM, ctx.paramName)
-            ).to.exist.and.not.have.property("version");
-          }
-        );
+        const configFile = await ConfigFile.loadConfig(envName);
 
-      ssmImportTest
-        .commandWithContext((ctx) => [
-          "ssm:import",
-          "--env",
-          ctx.env,
-          "-n",
-          ctx.paramName,
-        ])
-        .it("should import the parameter", async (ctx) => {
-          const configFile = await ConfigFile.loadConfig(ctx.env);
+        expect(
+          configFile.getParamConfig(Source.SSM, paramName)
+        ).to.exist.and.not.have.property("version");
+      });
 
-          expect(configFile.getParamConfig(Source.SSM, ctx.paramName))
-            .to.exist.and.have.property("version")
-            .that.equals("1");
-        });
+      it("should import the parameter", async () => {
+        await runCommand(["ssm:import", "--env", envName, "-n", paramName]);
+
+        const configFile = await ConfigFile.loadConfig(envName);
+
+        expect(configFile.getParamConfig(Source.SSM, paramName))
+          .to.exist.and.have.property("version")
+          .that.equals("1");
+      });
     });
 
     describe("chamber", () => {
-      const chamberImportTest = ssmTest
-        .add("serviceName", "griffin-cli")
-        .add("serviceEnvName", "griffin-cli-test")
-        .add("params", (ctx) => [
-          { name: `/${ctx.serviceName}/param-one`, value: randomUUID() },
-          { name: `/${ctx.serviceName}/param-two`, value: randomUUID() },
-          { name: `/${ctx.serviceEnvName}/param-three`, value: randomUUID() },
-          { name: `/${ctx.serviceEnvName}/param-one`, value: randomUUID() },
-        ])
-        .do((ctx) =>
-          Promise.all(
-            ctx.params.map((param) =>
-              addParam({
-                name: param.name,
-                value: param.value,
-                type: ParameterType.SECURE_STRING,
-              })
-            )
+      let serviceName: string;
+      let serviceEnvName: string;
+      let params: Array<{ name: string; value: string }>;
+
+      beforeEach(async () => {
+        serviceName = "griffin-cli";
+        serviceEnvName = "griffin-cli-test";
+        params = [
+          { name: `/${serviceName}/param-one`, value: randomUUID() },
+          { name: `/${serviceName}/param-two`, value: randomUUID() },
+          { name: `/${serviceEnvName}/param-three`, value: randomUUID() },
+          { name: `/${serviceEnvName}/param-one`, value: randomUUID() },
+        ];
+
+        await Promise.all(
+          params.map((param) =>
+            addParam({
+              name: param.name,
+              value: param.value,
+              type: ParameterType.SECURE_STRING,
+            })
           )
         );
+      });
 
-      chamberImportTest
-        .commandWithContext((ctx) => [
+      it("should import chamber params and lock the version", async () => {
+        await runCommand([
           "ssm:import",
           "-c",
-          ctx.serviceName,
+          serviceName,
           "-c",
-          ctx.serviceEnvName,
-        ])
-        .do((ctx) =>
-          addParam({
-            name: ctx.params[2].name,
-            value: randomUUID(),
-          })
-        )
-        .commandWithContext(() => [
+          serviceEnvName,
+        ]);
+
+        await addParam({
+          name: params[2].name,
+          value: randomUUID(),
+        });
+
+        await runCommand([
           "exec",
           "--skip-exit",
           "--",
           "../../test/integration/test-script.sh",
-          `--name=PARAM_ONE`,
+          "--name=PARAM_ONE",
           "PARAM_TWO",
-          `--name=PARAM_THREE`,
-        ])
-        .it(
-          "should import chamber params and lock the version",
-          async (ctx) => {
-            // This isn't great, but I can't find a way to guarantee the shell script has finished writing
-            // to the file by now.
-            await sleep(5_000);
+          "--name=PARAM_THREE",
+        ]);
 
-            const output = (
-              await readFile("./test-script-output.txt")
-            ).toString();
+        await sleep(5_000);
 
-            expect(output).to.match(
-              new RegExp(`^${ctx.params[1].value}$`, "m")
-            );
-            expect(output).to.match(
-              new RegExp(`^${ctx.params[2].value}$`, "m")
-            );
-            expect(output).to.match(
-              new RegExp(`^${ctx.params[3].value}$`, "m")
-            );
-          }
-        );
+        const output = (await readFile("./test-script-output.txt")).toString();
 
-      chamberImportTest
-        .add("updatedParamValue", randomUUID())
-        .commandWithContext((ctx) => [
+        expect(output).to.match(new RegExp(`^${params[1].value}$`, "m"));
+        expect(output).to.match(new RegExp(`^${params[2].value}$`, "m"));
+        expect(output).to.match(new RegExp(`^${params[3].value}$`, "m"));
+      });
+
+      it("should import chamber params without locking the version", async () => {
+        const updatedParamValue = randomUUID();
+
+        await runCommand([
           "ssm:import",
           "-c",
-          ctx.serviceName,
+          serviceName,
           "-c",
-          ctx.serviceEnvName,
+          serviceEnvName,
           "--always-use-latest",
           "--optional",
-        ])
-        .do((ctx) =>
-          addParam({
-            name: ctx.params[2].name,
-            value: ctx.updatedParamValue,
-          })
-        )
-        .commandWithContext(() => [
+        ]);
+
+        await addParam({
+          name: params[2].name,
+          value: updatedParamValue,
+        });
+
+        await runCommand([
           "exec",
           "--skip-exit",
           "--",
           "../../test/integration/test-script.sh",
-          `--name=PARAM_ONE`,
+          "--name=PARAM_ONE",
           "PARAM_TWO",
-          `--name=PARAM_THREE`,
-        ])
-        .it(
-          "should import chamber params without locking the version",
-          async (ctx) => {
-            // This isn't great, but I can't find a way to guarantee the shell script has finished writing
-            // to the file by now.
-            await sleep(5_000);
+          "--name=PARAM_THREE",
+        ]);
 
-            const output = (
-              await readFile("./test-script-output.txt")
-            ).toString();
+        await sleep(5_000);
 
-            expect(output).to.match(
-              new RegExp(`^${ctx.params[1].value}$`, "m")
-            );
-            expect(output).to.match(
-              new RegExp(`^${ctx.params[3].value}$`, "m")
-            );
+        const output = (await readFile("./test-script-output.txt")).toString();
 
-            expect(output).to.match(
-              new RegExp(`^${ctx.updatedParamValue}$`, "m")
-            );
-          }
-        );
+        expect(output).to.match(new RegExp(`^${params[1].value}$`, "m"));
+        expect(output).to.match(new RegExp(`^${params[3].value}$`, "m"));
+
+        expect(output).to.match(new RegExp(`^${updatedParamValue}$`, "m"));
+      });
     });
   });
 });
