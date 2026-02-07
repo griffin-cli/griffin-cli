@@ -132,7 +132,22 @@ describe('Migrate Hook', () => {
     sinon.assert.notCalled(migrateConfigStub);
   });
 
-  it('should detect files in the directory specified by the cwd flag');
+  it('should detect files in the directory specified by the cwd flag', async () => {
+    mock({
+      test: {
+        '.griffin-config.prod.json': '{}',
+      },
+    });
+    opts.flags.cwd = './test';
+    opts.ux.confirm.resolves(true);
+
+    await migrate.call(hookContext, opts);
+
+    sinon.assert.calledOnce(hookContext.warn);
+    sinon.assert.calledOnce(opts.ux.confirm);
+    sinon.assert.calledOnce(migrateConfigStub);
+    sinon.assert.calledWith(migrateConfigStub, 'prod', './test');
+  });
 
   it('should log a warning if there is an error migrating a file', async () => {
     mock({

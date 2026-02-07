@@ -41,29 +41,53 @@ const doesFileExist = async (filepath: string): Promise<boolean> => {
   }
 };
 
+const waitForFileMissing = async (
+  filepath: string,
+  timeoutMs = 2000,
+  intervalMs = 50
+): Promise<void> => {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    if (!await doesFileExist(filepath)) {
+      return;
+    }
+    await sleep(intervalMs);
+  }
+};
+
 describe("SSM", () => {
-  const testDir = `.tmp_test/${randomUUID()}`;
   const envName = "test";
   const originalEnv = {
     AWS_REGION: process.env.AWS_REGION,
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
   };
+  let testDir: string;
+  let originalCwd: string;
 
-  before(async () => {
-    await mkdir(testDir, { recursive: true });
-    process.chdir(testDir);
-    await clearSSM();
+  before(() => {
     process.env.AWS_REGION = "us-east-1";
     process.env.AWS_ACCESS_KEY_ID = "abc";
     process.env.AWS_SECRET_ACCESS_KEY = "123";
   });
 
-  after(async () => {
-    process.chdir(resolve(process.cwd(), "../.."));
+  beforeEach(async () => {
+    originalCwd = process.cwd();
+    testDir = resolve(originalCwd, `.tmp_test/${randomUUID()}`);
+    await mkdir(testDir, { recursive: true });
+    process.chdir(testDir);
+    await clearSSM();
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
     await rm(".tmp_test", { recursive: true, force: true });
     await clearTestScriptOutput();
     await clearSSM();
+  });
+
+  after(() => {
     process.env.AWS_REGION = originalEnv.AWS_REGION;
     process.env.AWS_ACCESS_KEY_ID = originalEnv.AWS_ACCESS_KEY_ID;
     process.env.AWS_SECRET_ACCESS_KEY = originalEnv.AWS_SECRET_ACCESS_KEY;
@@ -93,12 +117,19 @@ describe("SSM", () => {
       },
     };
 
-    await writeFile(".griffin-config.prod.json", JSON.stringify(prodConfig));
-    await writeFile(".griffin-config.dev.json", JSON.stringify(devConfig));
+    const prodJsonPath = resolve(testDir, ".griffin-config.prod.json");
+    const devJsonPath = resolve(testDir, ".griffin-config.dev.json");
+    const prodYamlPath = resolve(testDir, ".griffin-config.prod.yaml");
+    const devYamlPath = resolve(testDir, ".griffin-config.dev.yaml");
+
+    await writeFile(prodJsonPath, JSON.stringify(prodConfig));
+    await writeFile(devJsonPath, JSON.stringify(devConfig));
 
     await runCommandWithStdin(
       [
         "ssm:create",
+        "--cwd",
+        testDir,
         "--env",
         envName,
         "-n",
@@ -106,26 +137,27 @@ describe("SSM", () => {
         "-v",
         "test",
       ],
-      "y",
+      "y\n",
       500
     );
 
-    await expect(doesFileExist(".griffin-config.prod.json")).to.eventually.be
-      .false;
-    await expect(doesFileExist(".griffin-config.dev.json")).to.eventually.be
-      .false;
+    await waitForFileMissing(prodJsonPath);
+    await waitForFileMissing(devJsonPath);
 
-    await expect(doesFileExist(".griffin-config.prod.yaml")).to.eventually.be
+    await expect(doesFileExist(prodJsonPath)).to.eventually.be.false;
+    await expect(doesFileExist(devJsonPath)).to.eventually.be.false;
+
+    await expect(doesFileExist(prodYamlPath)).to.eventually.be
       .true;
-    await expect(doesFileExist(".griffin-config.dev.yaml")).to.eventually.be
+    await expect(doesFileExist(devYamlPath)).to.eventually.be
       .true;
 
-    const prodData = await readFile(".griffin-config.prod.yaml", {
+    const prodData = await readFile(prodYamlPath, {
       encoding: "utf8",
     });
     expect(yaml.parse(prodData)).to.deep.equal(prodConfig);
 
-    const devData = await readFile(".griffin-config.dev.yaml", {
+    const devData = await readFile(devYamlPath, {
       encoding: "utf8",
     });
     expect(yaml.parse(devData)).to.deep.equal(devConfig);
