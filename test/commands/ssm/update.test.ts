@@ -7,6 +7,7 @@ import { ux } from "@oclif/core";
 import SSMUpdate from "../../../src/commands/ssm/update.js";
 import { SSMStore } from "../../../src/store/index.js";
 import { ConfigFile, Source } from "../../../src/config/index.js";
+import runCommandWithStdin from "../../helpers/run-command-with-stdin.js";
 
 describe("ssm:update", () => {
   let sandbox: SinonSandbox;
@@ -167,6 +168,49 @@ describe("ssm:update", () => {
         Source.SSM,
         paramName,
         sinon.match.has("version", undefined)
+      );
+    });
+
+    it("should use the value from stdin if --from-stdin is specified", async () => {
+      await runCommandWithStdin(
+        ["ssm:update", "--name", paramName, "--from-stdin"],
+        paramValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
+    });
+
+    it("should read multiple lines from stdin", async () => {
+      const multiLineValue = `${randomUUID()}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        ["ssm:update", "--name", paramName, "--from-stdin"],
+        multiLineValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", multiLineValue)
+      );
+    });
+
+    it("should only read the first line from stdin if --from-stdin and --read-single-line is specified", async () => {
+      const input = `${paramValue}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        ["ssm:update", "--name", paramName, "--from-stdin", "--read-single-line"],
+        input
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
       );
     });
 

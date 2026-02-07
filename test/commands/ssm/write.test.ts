@@ -8,6 +8,7 @@ import { ParameterType } from "@aws-sdk/client-ssm";
 import SSMWrite from "../../../src/commands/ssm/write.js";
 import { SSMStore } from "../../../src/store/index.js";
 import { ConfigFile, Source } from "../../../src/config/index.js";
+import runCommandWithStdin from "../../helpers/run-command-with-stdin.js";
 
 describe("ssm:write", () => {
   let sandbox: SinonSandbox;
@@ -247,6 +248,57 @@ describe("ssm:write", () => {
       );
     });
 
+    it("should use the value from stdin if --from-stdin is specified", async () => {
+      await runCommandWithStdin(
+        ["ssm:write", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        paramValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
+    });
+
+    it("should read multiple lines from stdin", async () => {
+      const multiLineValue = `${randomUUID()}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        ["ssm:write", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        multiLineValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", multiLineValue)
+      );
+    });
+
+    it("should only read the first line from stdin if --from-stdin and --read-single-line is specified", async () => {
+      const input = `${paramValue}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        [
+          "ssm:write",
+          "--name",
+          paramName,
+          "--from-stdin",
+          "--type",
+          "SecureString",
+          "--read-single-line",
+        ],
+        input
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
+    });
+
     describe("skip unchanged", () => {
       it("should not update the parameter if the value has not changed", async () => {
         sandbox.stub(ssmStore, "getParamValue").resolves(paramValue);
@@ -281,6 +333,95 @@ describe("ssm:write", () => {
 
         sinon.assert.calledOnce(ssmStore.writeParam);
       });
+    });
+  });
+
+  describe("existing parameter", () => {
+    beforeEach(() => {
+      sandbox.stub(ssmStore, "writeParam").resolves({ updatedVersion });
+      sandbox.stub(configFile, "hasParamConfig").returns(true);
+      sandbox.stub(configFile, "setParamConfig").returns();
+      sandbox.stub(configFile, "save").resolves();
+    });
+
+    it("should not specify the type if the parameter is already in config", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", undefined)
+      );
+    });
+
+    it("should not overwrite an existing env var name if the --env-var-name flag is not provided", async () => {
+      sandbox.stub(configFile, "getParamConfig").returns({ envVarName });
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", envVarName)
+      );
+    });
+
+    it("should overwrite an existing env var name if the --env-var-name flag is specified", async () => {
+      const updatedEnvVarName = randomUUID().replaceAll("-", "_");
+      sandbox.stub(configFile, "getParamConfig").returns({ envVarName });
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--env-var-name",
+        updatedEnvVarName,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", updatedEnvVarName)
+      );
+    });
+
+    it("should clear the version for an existing parameter if --always-use-latest is specified", async () => {
+      sandbox.stub(configFile, "getParamConfig").returns({ version: "5" });
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--always-use-latest",
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", undefined)
+      );
     });
   });
 });

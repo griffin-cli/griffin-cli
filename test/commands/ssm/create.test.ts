@@ -1,30 +1,33 @@
-import { expect } from 'chai';
-import sinon, { SinonSandbox, SinonStubbedInstance, SinonStub } from 'sinon';
-import { runCommand } from '@oclif/test';
-import { randomUUID } from 'crypto';
-import { ux } from '@oclif/core';
-import { ParameterType } from '@aws-sdk/client-ssm';
+import { expect } from "chai";
+import sinon, { SinonSandbox, SinonStubbedInstance, SinonStub } from "sinon";
+import { runCommand } from "@oclif/test";
+import { randomUUID } from "crypto";
+import { ux } from "@oclif/core";
+import { ParameterType } from "@aws-sdk/client-ssm";
 
-import SSMCreate from '../../../src/commands/ssm/create.js';
-import { SSMStore } from '../../../src/store/index.js';
-import { ConfigFile, Source } from '../../../src/config/index.js';
+import SSMCreate from "../../../src/commands/ssm/create.js";
+import { SSMStore } from "../../../src/store/index.js";
+import { ConfigFile, Source } from "../../../src/config/index.js";
+import runCommandWithStdin from "../../helpers/run-command-with-stdin.js";
 
-describe('ssm:create', () => {
+describe("ssm:create", () => {
   let sandbox: SinonSandbox;
   let ssmStore: SinonStubbedInstance<SSMStore>;
   let configFile: SinonStubbedInstance<ConfigFile>;
   let paramName: string;
   let paramValue: string;
   let envVarName: string;
-  const updatedVersion = '7';
+  const updatedVersion = "7";
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
     ssmStore = new SSMStore() as SinonStubbedInstance<SSMStore>;
-    configFile = new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>;
+    configFile = new (ConfigFile as unknown as {
+      new (): ConfigFile;
+    })() as SinonStubbedInstance<ConfigFile>;
     paramName = randomUUID();
     paramValue = randomUUID();
-    envVarName = randomUUID().replaceAll('-', '_');
+    envVarName = randomUUID().replaceAll("-", "_");
     SSMCreate.ssmStore = ssmStore;
     SSMCreate.configFile = configFile;
   });
@@ -35,114 +38,296 @@ describe('ssm:create', () => {
     sandbox.restore();
   });
 
-  it('should return an error message if the parameter is already tracked', async () => {
-    sandbox.stub(configFile, 'hasParamConfig').returns(true);
+  it("should return an error message if the parameter is already tracked", async () => {
+    sandbox.stub(configFile, "hasParamConfig").returns(true);
 
-    const { error, stderr } = await runCommand(['ssm:create', '--name', paramName]);
+    const { error, stderr } = await runCommand([
+      "ssm:create",
+      "--name",
+      paramName,
+    ]);
 
     expect(error?.oclif?.exit).to.equal(1);
-    expect(stderr).to.contain('Parameter already exists');
+    expect(stderr).to.contain("Parameter already exists");
   });
 
-  describe('happy path', () => {
+  describe("happy path", () => {
     beforeEach(() => {
-      sandbox.stub(ssmStore, 'writeParam').resolves({ updatedVersion });
-      sandbox.stub(configFile, 'hasParamConfig').returns(false);
-      sandbox.stub(configFile, 'setParamConfig').returns();
-      sandbox.stub(configFile, 'save').resolves();
+      sandbox.stub(ssmStore, "writeParam").resolves({ updatedVersion });
+      sandbox.stub(configFile, "hasParamConfig").returns(false);
+      sandbox.stub(configFile, "setParamConfig").returns();
+      sandbox.stub(configFile, "save").resolves();
     });
 
-    it('should use the value specified with the --value flag', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--type', 'SecureString']);
+    it("should use the value specified with the --value flag", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "SecureString",
+      ]);
 
       sinon.assert.calledOnce(ssmStore.writeParam);
-      sinon.assert.calledWith(ssmStore.writeParam, sinon.match.has('value', paramValue));
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-    it('should prompt the user for the value', async () => {
-      sandbox.stub(ux, 'prompt').resolves(paramValue);
+    it("should prompt the user for the value", async () => {
+      sandbox.stub(ux, "prompt").resolves(paramValue);
 
-      await runCommand(['ssm:create', '--name', paramName, '--type', 'SecureString']);
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--type",
+        "SecureString",
+      ]);
 
       sinon.assert.calledOnce(ux.prompt as SinonStub);
-      sinon.assert.calledWith(ux.prompt as SinonStub, 'Value', sinon.match.has('type', 'mask'));
+      sinon.assert.calledWith(
+        ux.prompt as SinonStub,
+        "Value",
+        sinon.match.has("type", "mask")
+      );
       sinon.assert.calledOnce(ssmStore.writeParam);
-      sinon.assert.calledWith(ssmStore.writeParam, sinon.match.has('value', paramValue));
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-    it('should save the description if provided', async () => {
+    it("should save the description if provided", async () => {
       const description = `${randomUUID()} ${randomUUID()}`;
 
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--type', 'SecureString', '--description', `"${description}"`]);
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "SecureString",
+        "--description",
+        `"${description}"`,
+      ]);
 
       sinon.assert.calledOnce(ssmStore.writeParam);
-      sinon.assert.calledWith(ssmStore.writeParam, sinon.match.has('description', description));
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("description", description)
+      );
     });
 
-    it('should use the parameter type specified with --type', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--type', 'String']);
+    it("should use the parameter type specified with --type", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "String",
+      ]);
 
       sinon.assert.calledOnce(ssmStore.writeParam);
-      sinon.assert.calledWith(ssmStore.writeParam, sinon.match.has('type', 'String'));
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", "String")
+      );
     });
 
-    it('should default the type to SecureString if --type is not specified', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue]);
+    it("should default the type to SecureString if --type is not specified", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
 
       sinon.assert.calledOnce(ssmStore.writeParam);
-      sinon.assert.calledWith(ssmStore.writeParam, sinon.match.has('type', ParameterType.SECURE_STRING));
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", ParameterType.SECURE_STRING)
+      );
     });
 
-    it('should require the --name flag', async () => {
-      const { error, stderr } = await runCommand(['ssm:create', '--value', paramValue, '--type', ParameterType.SECURE_STRING]);
+    it("should require the --name flag", async () => {
+      const { error, stderr } = await runCommand([
+        "ssm:create",
+        "--value",
+        paramValue,
+        "--type",
+        ParameterType.SECURE_STRING,
+      ]);
 
       expect(error?.oclif?.exit).to.equal(1);
-      expect(stderr).to.contain('name').and.contain('required');
+      expect(stderr).to.contain("name").and.contain("required");
     });
 
-    it('should use the env var name specified with the --env-var-name flag', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--env-var-name', envVarName]);
+    it("should use the env var name specified with the --env-var-name flag", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--env-var-name",
+        envVarName,
+      ]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, paramName, sinon.match.has('envVarName', envVarName));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", envVarName)
+      );
     });
 
-    it('should default to the name of the parameter (without the prefix)', async () => {
-      const name = '/test/this-is-a-name';
-      const expectedEnvVarName = 'THIS_IS_A_NAME';
+    it("should default to the name of the parameter (without the prefix)", async () => {
+      const name = "/test/this-is-a-name";
+      const expectedEnvVarName = "THIS_IS_A_NAME";
 
-      await runCommand(['ssm:create', '--name', name, '--value', paramValue]);
+      await runCommand(["ssm:create", "--name", name, "--value", paramValue]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, name, sinon.match.has('envVarName', expectedEnvVarName));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        name,
+        sinon.match.has("envVarName", expectedEnvVarName)
+      );
     });
 
-    it('should save the current version to the config file', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue]);
+    it("should save the current version to the config file", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, paramName, sinon.match.has('version', updatedVersion));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", updatedVersion)
+      );
     });
 
-    it('should not lock the version in the config file if --always-use-latest is specified', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--always-use-latest']);
+    it("should not lock the version in the config file if --always-use-latest is specified", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--always-use-latest",
+      ]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, paramName, sinon.match.has('version', undefined));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", undefined)
+      );
     });
 
-    it('should set allowMissingValue to true in the config if --optional is specified', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue, '--optional']);
+    it("should set allowMissingValue to true in the config if --optional is specified", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--optional",
+      ]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, paramName, sinon.match.has('allowMissingValue', true));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("allowMissingValue", true)
+      );
     });
 
-    it('should not set allowMissingValue in the config', async () => {
-      await runCommand(['ssm:create', '--name', paramName, '--value', paramValue]);
+    it("should not set allowMissingValue in the config", async () => {
+      await runCommand([
+        "ssm:create",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
 
       sinon.assert.calledOnce(configFile.setParamConfig);
-      sinon.assert.calledWith(configFile.setParamConfig, Source.SSM, paramName, sinon.match.has('allowMissingValue', undefined));
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("allowMissingValue", undefined)
+      );
+    });
+
+    it("should use the value from stdin if --from-stdin is specified", async () => {
+      await runCommandWithStdin(
+        ["ssm:create", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        paramValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
+    });
+
+    it("should read multiple lines from stdin", async () => {
+      const multiLineValue = `${randomUUID()}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        ["ssm:create", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        multiLineValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", multiLineValue)
+      );
+    });
+
+    it("should only read the first line from stdin if --from-stdin and --read-single-line is specified", async () => {
+      const input = `${paramValue}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        [
+          "ssm:create",
+          "--name",
+          paramName,
+          "--from-stdin",
+          "--type",
+          "SecureString",
+          "--read-single-line",
+        ],
+        input
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
   });
 });
