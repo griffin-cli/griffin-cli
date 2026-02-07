@@ -143,6 +143,26 @@ describe("SSMStore", () => {
         expect(result).to.deep.equal([{ name: envVarName, value: paramValue }]);
       });
 
+      it("should fetch the version", async () => {
+        const envVarName = "ENV_VAR";
+        const paramValue = "value";
+        const paramVersion = "5";
+        ssmClient
+          .on(GetParametersCommand, {
+            Names: [`${paramName}:${paramVersion}`],
+            WithDecryption: true,
+          })
+          .resolves({
+            Parameters: [{ Name: paramName, Value: paramValue }],
+          });
+
+        const result = await store.getEnvVars([
+          { id: paramName, version: paramVersion, envVarName },
+        ] as ParamDefinition[]);
+
+        expect(result).to.deep.equal([{ name: envVarName, value: paramValue }]);
+      });
+
       it("should send the request in batches", async () => {
         ssmClient.on(GetParametersCommand).callsFake((cmd) => ({
           Parameters: cmd.Names.map((name: string) => ({
@@ -219,7 +239,92 @@ describe("SSMStore", () => {
         });
       });
 
-      sinon.assert.calledOnce(ssmClient.send);
+      it("should return the full history if the results are paginated", async () => {
+        const nextToken = randomUUID();
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: 50,
+            NextToken: undefined,
+          })
+          .resolves({
+            NextToken: nextToken,
+            Parameters: createRandomRecords({ paramName }, 50),
+          });
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: 50,
+            NextToken: nextToken,
+          })
+          .resolves({
+            Parameters: createRandomRecords({ paramName }, 50),
+          });
+
+        const res = await store.getHistory(paramName);
+
+        expect(res).to.have.length(100);
+        let prevVersion = Infinity;
+        res.forEach((record) => {
+          expect(record.version).to.exist;
+          const version = parseInt(record.version!, 10);
+          expect(version).to.be.lessThanOrEqual(prevVersion);
+          prevVersion = version;
+        });
+        sinon.assert.calledTwice(ssmClient.send);
+      });
+
+      it("should only return the number of records requested", async () => {
+        const recordCount = 5;
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: recordCount,
+            NextToken: undefined,
+          })
+          .resolves({
+            Parameters: createRandomRecords({ paramName }, recordCount),
+          });
+
+        const result = await store.getHistory(paramName, recordCount);
+
+        expect(result).to.have.length(recordCount);
+        sinon.assert.calledOnce(ssmClient.send);
+      });
+
+      it("should return as many records as specified if more than the batch size is requested", async () => {
+        const recordCount = 55;
+        const nextToken = randomUUID();
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: 50,
+            NextToken: undefined,
+          })
+          .resolves({
+            NextToken: nextToken,
+            Parameters: createRandomRecords({ paramName }, 50),
+          });
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            WithDecryption: true,
+            MaxResults: 5,
+            NextToken: nextToken,
+          })
+          .resolves({
+            Parameters: createRandomRecords({ paramName }, 5),
+          });
+
+        const result = await store.getHistory(paramName, recordCount);
+
+        expect(result).to.have.length(55);
+        sinon.assert.calledTwice(ssmClient.send);
+      });
     });
 
     describe("getCurrentVersion", () => {
@@ -252,6 +357,14 @@ describe("SSMStore", () => {
         ssmClient
           .on(GetParameterCommand, { Name: paramName })
           .resolves({ Parameter: {} });
+
+        await expect(store.getCurrentVersion(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should throw a ParameterNotFoundError if the parameter is not set", async () => {
+        ssmClient.on(GetParameterCommand).resolves({});
 
         await expect(store.getCurrentVersion(paramName)).to.be.rejectedWith(
           ParameterNotFoundError
@@ -302,6 +415,81 @@ describe("SSMStore", () => {
             NextToken: undefined,
           })
         ).to.exist.and.have.length(1);
+      });
+
+      it("should not pull more records if it found the proper version", async () => {
+        const paramVersion = 55;
+        const paramHistory = createRandomRecord(
+          { paramName, paramVersion },
+          { version: paramVersion }
+        );
+        ssmClient.on(GetParameterHistoryCommand).resolves({
+          NextToken: randomUUID(),
+          Parameters: [
+            ...createRandomRecords({ paramName, paramVersion }, 3),
+            paramHistory,
+            ...createRandomRecords({ paramName, paramVersion }, 4),
+          ],
+        });
+
+        const result = await store.getParamRecord(paramName, `${paramVersion}`);
+
+        expect(result).to.deep.equal({
+          name: paramName,
+          value: paramHistory.Value,
+          version: `${paramVersion}`,
+          modifiedAt: paramHistory.LastModifiedDate,
+          modifiedBy: paramHistory.LastModifiedUser,
+        });
+        sinon.assert.calledOnce(ssmClient.send);
+      });
+
+      it("should continue fetching records until it finds the desired version", async () => {
+        const paramVersion = 55;
+        const nextToken = randomUUID();
+        const paramHistory = createRandomRecord(
+          { paramName, paramVersion },
+          { version: paramVersion }
+        );
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            NextToken: undefined,
+          })
+          .resolves({
+            NextToken: nextToken,
+            Parameters: createRandomRecords({ paramName, paramVersion }, 50),
+          });
+        ssmClient
+          .on(GetParameterHistoryCommand, {
+            Name: paramName,
+            NextToken: nextToken,
+          })
+          .resolves({
+            NextToken: undefined,
+            Parameters: [
+              ...createRandomRecords({ paramName, paramVersion }, 4),
+              paramHistory,
+            ],
+          });
+
+        const result = await store.getParamRecord(paramName, `${paramVersion}`);
+
+        expect(result).to.deep.equal({
+          name: paramName,
+          value: paramHistory.Value,
+          version: `${paramVersion}`,
+          modifiedAt: paramHistory.LastModifiedDate,
+          modifiedBy: paramHistory.LastModifiedUser,
+        });
+        sinon.assert.calledTwice(ssmClient.send);
+
+        expect(
+          ssmClient.commandCalls(GetParameterHistoryCommand, {
+            Name: paramName,
+            NextToken: nextToken,
+          })
+        );
       });
 
       it("should throw a ParameterVersionNotFoundError if the version could not be found", async () => {
@@ -357,6 +545,33 @@ describe("SSMStore", () => {
 
         await expect(store.getParamValue(paramName)).to.be.rejectedWith(
           ParameterVersionNotFoundError
+        );
+      });
+
+      it("should throw a ParameterNotFoundError if the version is not set", async () => {
+        ssmClient
+          .on(GetParameterCommand, { Name: paramName })
+          .resolves({ Parameter: {} });
+
+        await expect(store.getParamValue(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should throw a ParameterNotFoundError if the parameter is not set", async () => {
+        ssmClient.on(GetParameterCommand).resolves({});
+
+        await expect(store.getParamValue(paramName)).to.be.rejectedWith(
+          ParameterNotFoundError
+        );
+      });
+
+      it("should rethrow an unknown error", async () => {
+        const errorMsg = "Something bad happened.";
+        ssmClient.on(GetParameterCommand).rejects(errorMsg);
+
+        await expect(store.getParamValue(paramName)).to.be.rejectedWith(
+          errorMsg
         );
       });
     });
@@ -415,6 +630,37 @@ describe("SSMStore", () => {
             Name: paramName,
             Value: paramValue,
             Description: paramDescription,
+          })
+        ).to.exist.and.have.length(1);
+      });
+
+      it("should update the value and set the parameter type", async () => {
+        const paramValue = `${count}`;
+        const paramType: ParameterType = "SecureString";
+        const nextVersion = count + 1;
+        ssmClient
+          .on(PutParameterCommand, {
+            Name: paramName,
+            Value: paramValue,
+            Type: paramType,
+          })
+          .resolves({
+            Version: nextVersion,
+          });
+
+        const result = await store.writeParam({
+          name: paramName,
+          value: paramValue,
+          type: paramType,
+        });
+
+        expect(result).to.deep.equal({ updatedVersion: `${nextVersion}` });
+        sinon.assert.calledOnce(ssmClient.send);
+        expect(
+          ssmClient.commandCalls(PutParameterCommand, {
+            Name: paramName,
+            Value: paramValue,
+            Type: paramType,
           })
         ).to.exist.and.have.length(1);
       });

@@ -50,7 +50,7 @@ describe("ssm:import", () => {
       try {
         await unlink(dotenvFilename);
       } catch {
-        // File may not exist
+        // Ignore - file may not exist if test failed before creating it
       }
     });
 
@@ -182,6 +182,84 @@ describe("ssm:import", () => {
           sinon.match.has("allowMissingValue", true)
         );
       });
+
+      it('should not allow missing values', async () => {
+        await runCommand([
+          'ssm:import',
+          '--from-dotenv',
+          dotenvFilename,
+          '--prefix',
+          prefix,
+        ]);
+
+        sinon.assert.callCount(configFile.setParamConfig, Object.keys(jsonConfig).length);
+        sinon.assert.alwaysCalledWith(
+          configFile.setParamConfig,
+          Source.SSM,
+          sinon.match.string,
+          sinon.match.has('allowMissingValue', undefined)
+        );
+      });
+
+      it('should upload the parameters properly if the prefix does not start with a forward slash', async () => {
+        await runCommand([
+          'ssm:import',
+          '--from-dotenv',
+          dotenvFilename,
+          '--prefix',
+          prefix.replace(/^\//, ''),
+        ]);
+
+        Object.keys(jsonConfig).forEach((key) => {
+          const expectedName = `${prefix}/${normalizeEnvVarName(key)}`;
+          sinon.assert.calledWith(
+            ssmStore.writeParam,
+            sinon.match
+              .has('name', expectedName)
+              .and(sinon.match.has('value', `${jsonConfig[key]}`))
+          );
+        });
+      });
+
+      it('should upload the parameters properly if the prefix ends with a forward slash', async () => {
+        await runCommand([
+          'ssm:import',
+          '--from-dotenv',
+          dotenvFilename,
+          '--prefix',
+          `${prefix}/`,
+        ]);
+
+        Object.keys(jsonConfig).forEach((key) => {
+          const expectedName = `${prefix}/${normalizeEnvVarName(key)}`;
+          sinon.assert.calledWith(
+            ssmStore.writeParam,
+            sinon.match
+              .has('name', expectedName)
+              .and(sinon.match.has('value', `${jsonConfig[key]}`))
+          );
+        });
+      });
+
+      it('should upload the parameters properly if the prefix does not end with a forward slash', async () => {
+        await runCommand([
+          'ssm:import',
+          '--from-dotenv',
+          dotenvFilename,
+          '--prefix',
+          prefix,
+        ]);
+
+        Object.keys(jsonConfig).forEach((key) => {
+          const expectedName = `${prefix}/${normalizeEnvVarName(key)}`;
+          sinon.assert.calledWith(
+            ssmStore.writeParam,
+            sinon.match
+              .has('name', expectedName)
+              .and(sinon.match.has('value', `${jsonConfig[key]}`))
+          );
+        });
+      });
     });
 
     describe("upload failure", () => {
@@ -230,6 +308,19 @@ describe("ssm:import", () => {
             } parameters.$`
           )
         );
+      });
+
+      it('should not log a failure if the quiet flag is specified', async () => {
+        const { stderr } = await runCommand([
+          'ssm:import',
+          '--from-dotenv',
+          dotenvFilename,
+          '--prefix',
+          prefix,
+          '--quiet',
+        ]);
+
+        expect(stderr.trim()).to.equal('');
       });
     });
   });
