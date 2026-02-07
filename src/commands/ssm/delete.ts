@@ -1,8 +1,7 @@
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
-import { Source } from '../../config';
-import SSMBaseCommand from '../../ssm-base-command';
+import { Source } from '../../config/index.js';
+import SSMBaseCommand from '../../ssm-base-command.js';
 
 export default class SSMDelete extends SSMBaseCommand<typeof SSMDelete> {
   static description = 'Permanently delete a parameter from Parameter Store and remove it from tracking.';
@@ -28,7 +27,7 @@ export default class SSMDelete extends SSMBaseCommand<typeof SSMDelete> {
         await this.configFile.save();
       }
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 }

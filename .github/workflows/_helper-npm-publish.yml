@@ -2,13 +2,13 @@ name: ZZ-NPM Publish
 
 on:
   workflow_call:
-    secrets:
-      NPM_TOKEN:
-        required: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -25,9 +25,11 @@ jobs:
         run: |
           npm ci
 
+      - name: Ensure npm >= 11.5.1 for OIDC
+        run: |
+          npm install -g npm@11.5.1
+
       - name: Publish
         if: vars.GRIFFIN_TEST_RUN != 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm publish

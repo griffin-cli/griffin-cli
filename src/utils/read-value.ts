@@ -1,6 +1,6 @@
 import { ux } from '@oclif/core';
 
-import InputOptions from '../store/input-options';
+import InputOptions from '../store/input-options.js';
 
 const readValueFromSTDIN = (readSingleLine?: boolean): Promise<string> => new Promise((resolve) => {
   const pipe = process.stdin;

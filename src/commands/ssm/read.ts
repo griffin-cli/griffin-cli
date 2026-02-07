@@ -1,12 +1,11 @@
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
-import { ConfigFile, Source } from '../../config';
-import { ConfigFileDoesNotExistError } from '../../errors';
-import ParameterConfigNotFoundError from '../../errors/parameter-config-not-found-error';
-import SSMBaseCommand from '../../ssm-base-command';
-import { DataLogger } from '../../utils';
-import { OutputFormat } from '../../utils/data-logger';
+import { ConfigFile, Source } from '../../config/index.js';
+import { ConfigFileDoesNotExistError } from '../../errors/index.js';
+import ParameterConfigNotFoundError from '../../errors/parameter-config-not-found-error.js';
+import SSMBaseCommand from '../../ssm-base-command.js';
+import { OutputFormat } from '../../utils/data-logger.js';
+import { DataLogger } from '../../utils/index.js';
 
 export default class SSMRead extends SSMBaseCommand<typeof SSMRead> {
   static description = 'Read a parameter from Parameter Store.';
@@ -95,7 +94,7 @@ export default class SSMRead extends SSMBaseCommand<typeof SSMRead> {
         },
       );
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 }

@@ -1,14 +1,19 @@
 {
   "name": "griffin-cli",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "Tool for pulling secrets and other config with version control.",
   "author": "Calvin Moore @c1moore",
+  "type": "module",
   "bin": {
     "griffin": "./bin/run"
   },
   "homepage": "https://github.com/griffin-cli/griffin-cli",
   "license": "MIT",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./interfaces": "./dist/interfaces.js"
+  },
   "repository": "griffin-cli/griffin-cli",
   "files": [
     "/bin",
@@ -35,17 +40,18 @@
   },
   "devDependencies": {
     "@aws-sdk/types": "^3.609.0",
-    "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@oclif/test": "^3.2.15",
+    "@oclif/test": "^4.1.15",
     "@types/chai": "^4.3.16",
     "@types/chai-as-promised": "^7.1.8",
     "@types/cli-progress": "^3.11.6",
     "@types/mocha": "^10.0.7",
     "@types/mock-fs": "^4.13.4",
     "@types/node": "^20.14.11",
+    "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",
     "aws-sdk-client-mock": "^4.0.1",
+    "c8": "^10.1.3",
     "chai": "^4.4.1",
     "chai-as-promised": "^7.1.2",
     "eslint": "^8.57.0",
@@ -56,12 +62,13 @@
     "mocha": "^10.6.0",
     "mock-fs": "^5.2.0",
     "mock-stdin": "^1.0.0",
-    "nyc": "^17.0.0",
     "oclif": "^4.14.6",
     "shx": "^0.3.4",
+    "sinon": "^19.0.2",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "tslib": "^2.6.3",
+    "tsx": "^4.19.0",
     "typescript": "^5.5.3"
   },
   "oclif": {
@@ -108,8 +115,8 @@
     "posttest": "npm run lint",
     "prepack": "oclif manifest && oclif readme",
     "prepublishOnly": "npm run build && npm shrinkwrap",
-    "test": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 nyc mocha \"test/**/*.test.ts\"",
-    "coverage": "nyc report --reporter=lcov",
+    "test": "GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 c8 mocha \"test/**/*.test.ts\"",
+    "coverage": "c8 report --reporter=lcov",
     "test:unit": "TEST_OUTPUT=1 mocha \"test/**/*.test.ts\" --exclude \"test/integration/*.test.ts\"",
     "test:integration": "TEST_OUTPUT=1 GRIFFIN_AWS_SSM_ENDPOINT=http://localhost:4566 mocha \"test/integration/*.test.ts\"",
     "version": "oclif readme && git add README.md",

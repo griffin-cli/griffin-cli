@@ -1,34 +1,57 @@
-import { expect } from '@oclif/test';
-import Sinon, { SinonStub, SinonStubbedInstance } from 'sinon';
+import sinon, { SinonSandbox, SinonStubbedInstance, SinonStub } from "sinon";
+import { runCommand } from "@oclif/test";
+import { randomUUID } from "crypto";
 
-import test from '../../helpers/register';
-import { SSMStore } from '../../../src/store';
-import SSMHistory from '../../../src/commands/ssm/history';
-import { randomUUID } from 'crypto';
-import { DataLogger } from '../../../src/utils';
+import SSMHistory from "../../../src/commands/ssm/history.js";
+import { SSMStore } from "../../../src/store/index.js";
+import { DataLogger } from "../../../src/utils/index.js";
 
-describe('ssm:history', () => {
-  const historyTest = test
-    .add('name', () => `/griffin/test/${randomUUID()}`)
-    .add('ssmStore', () => new SSMStore() as SinonStubbedInstance<SSMStore>)
-    .do((ctx) => SSMHistory.ssmStore = ctx.ssmStore)
-    .finally(() => SSMHistory.ssmStore = undefined)
-    .add('historyRecords', (ctx) => [{
-      name: ctx.name,
-      value: randomUUID(),
-      version: '1',
-      modifiedAt: new Date(),
-      modifiedBy: 'griffin',
-    }])
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getHistory').withArgs(ctx.name).resolves(ctx.historyRecords))
-    .do((ctx) => ctx.sandbox.stub(DataLogger, 'log').returns());
+describe("ssm:history", () => {
+  let sandbox: SinonSandbox;
+  let ssmStore: SinonStubbedInstance<SSMStore>;
+  let paramName: string;
+  let historyRecords: Array<{
+    name: string;
+    value: string;
+    version: string;
+    modifiedAt: Date;
+    modifiedBy: string;
+  }>;
 
-  historyTest
-    .commandWithContext((ctx) => ['ssm:history', '--name', ctx.name, '--extended'])
-    .it('should log the history records', (ctx) => {
-      Sinon.assert.calledOnce(ctx.ssmStore.getHistory);
-      Sinon.assert.calledOnce(DataLogger.log as SinonStub);
-      Sinon.assert.calledWith(DataLogger.log as SinonStub, Sinon.match({
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    ssmStore = new SSMStore() as SinonStubbedInstance<SSMStore>;
+    paramName = `/griffin/test/${randomUUID()}`;
+    historyRecords = [
+      {
+        name: paramName,
+        value: randomUUID(),
+        version: "1",
+        modifiedAt: new Date(),
+        modifiedBy: "griffin",
+      },
+    ];
+    SSMHistory.ssmStore = ssmStore;
+    sandbox
+      .stub(ssmStore, "getHistory")
+      .withArgs(paramName)
+      .resolves(historyRecords);
+    sandbox.stub(DataLogger, "log").returns();
+  });
+
+  afterEach(() => {
+    SSMHistory.ssmStore = undefined;
+    sandbox.restore();
+  });
+
+  it("should log the history records", async () => {
+    await runCommand(["ssm:history", "--name", paramName, "--extended"]);
+
+    sinon.assert.calledOnce(ssmStore.getHistory);
+    sinon.assert.calledOnce(DataLogger.log as SinonStub);
+    sinon.assert.calledWith(
+      DataLogger.log as SinonStub,
+      sinon.match({
         name: {},
         description: {
           extended: true,
@@ -37,6 +60,9 @@ describe('ssm:history', () => {
         version: {},
         modifiedAt: {},
         modifiedBy: {},
-      }), ctx.historyRecords, Sinon.match.has('extended', true));
-    })
+      }),
+      historyRecords,
+      sinon.match.has("extended", true)
+    );
+  });
 });

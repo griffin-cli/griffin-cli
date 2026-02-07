@@ -1,7 +1,5 @@
-import ParamConfig from '../config/param-config';
+import type { ParamConfig } from '../config/param-config.js';
 
-type ParamDefinition = {
+export type ParamDefinition = {
   id: string;
 } & ParamConfig;
-
-export default ParamDefinition;

@@ -1,4 +1,4 @@
-import normalizeEnvVarName from './normalize-env-var-name';
+import normalizeEnvVarName from './normalize-env-var-name.js';
 
 export default class EnvFile {
   private static newlinePattern = /[^\\]\n/;

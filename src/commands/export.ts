@@ -4,10 +4,10 @@ import { Flags } from '@oclif/core';
 import * as csv from 'csv-stringify/sync';
 import * as yaml from 'yaml';
 
-import BaseCommand from '../base-command';
-import { UnsupportedOptionsError } from '../errors';
-import EnvFile from '../utils/envfile';
-import getEnvVars from '../utils/get-env-vars';
+import BaseCommand from '../base-command.js';
+import { UnsupportedOptionsError } from '../errors/index.js';
+import EnvFile from '../utils/envfile.js';
+import getEnvVars from '../utils/get-env-vars.js';
 
 export enum ExportOutputFormat {
   JSON = 'json',

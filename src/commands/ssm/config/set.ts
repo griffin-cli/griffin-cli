@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
-import { ParamConfig, Source } from '../../../config';
-import SSMBaseCommand from '../../../ssm-base-command';
+import { ParamConfig, Source } from '../../../config/index.js';
+import SSMBaseCommand from '../../../ssm-base-command.js';
 
 export default class SSMConfigSet extends SSMBaseCommand<typeof SSMConfigSet> {
   static description = 'Set the config value for a parameter.';

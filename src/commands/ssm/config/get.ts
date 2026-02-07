@@ -1,8 +1,8 @@
 import { Flags } from '@oclif/core';
 
-import { ParamConfig, Source } from '../../../config';
-import ParameterConfigNotFoundError from '../../../errors/parameter-config-not-found-error';
-import SSMBaseCommand from '../../../ssm-base-command';
+import { ParamConfig, Source } from '../../../config/index.js';
+import ParameterConfigNotFoundError from '../../../errors/parameter-config-not-found-error.js';
+import SSMBaseCommand from '../../../ssm-base-command.js';
 
 export default class SSMConfigGet extends SSMBaseCommand<typeof SSMConfigGet> {
   static description = 'Get the config value for a parameter tracked by griffin.';

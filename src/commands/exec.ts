@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 
 import { Args, Flags } from '@oclif/core';
 
-import BaseCommand from '../base-command';
-import getEnvVars from '../utils/get-env-vars';
+import BaseCommand from '../base-command.js';
+import getEnvVars from '../utils/get-env-vars.js';
 
 const signals = [
   'SIGABRT',

@@ -1,9 +1,8 @@
-import { Flags } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
-import SSMBaseCommand from '../../ssm-base-command';
-import { DataLogger } from '../../utils';
-import { DataLoggerOptions } from '../../utils/data-logger';
+import SSMBaseCommand from '../../ssm-base-command.js';
+import { DataLoggerOptions } from '../../utils/data-logger.js';
+import { DataLogger } from '../../utils/index.js';
 
 export default class SSMHistory extends SSMBaseCommand<typeof SSMHistory> {
   static description = 'View the history of a parameter.';
@@ -40,7 +39,7 @@ export default class SSMHistory extends SSMBaseCommand<typeof SSMHistory> {
         this.flags as DataLoggerOptions,
       );
     } catch (err) {
-      await this.catch(err as CommandError);
+      await this.catch(err as Interfaces.CommandError);
     }
   }
 }

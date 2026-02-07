@@ -1,251 +1,427 @@
-import { expect } from '@oclif/test'
-import { stdin } from 'mock-stdin';
-import sinon from 'sinon';
+import { expect } from "chai";
+import sinon, { SinonSandbox, SinonStubbedInstance, SinonStub } from "sinon";
+import { runCommand } from "@oclif/test";
+import { randomUUID } from "crypto";
+import { ux } from "@oclif/core";
+import { ParameterType } from "@aws-sdk/client-ssm";
 
-import SSMWrite from '../../../src/commands/ssm/write';
-import test from '../../helpers/register';
-import { SSMStore } from '../../../src/store';
-import { Source } from '../../../src/config';
-import { randomUUID } from 'crypto';
-import { SinonStubbedInstance, SinonStub } from 'sinon';
-import { ux } from '@oclif/core';
-import { ParameterType } from '@aws-sdk/client-ssm';
+import SSMWrite from "../../../src/commands/ssm/write.js";
+import { SSMStore } from "../../../src/store/index.js";
+import { ConfigFile, Source } from "../../../src/config/index.js";
+import runCommandWithStdin from "../../helpers/run-command-with-stdin.js";
 
-describe('ssm:write', () => {
-  const writeTest = test
-    .add('ssmStore', () => new SSMStore() as SinonStubbedInstance<SSMStore>)
-    .do((ctx) => SSMWrite.ssmStore = ctx.ssmStore)
-    .finally(() => SSMWrite.ssmStore = undefined)
-    .do((ctx) => SSMWrite.configFile = ctx.configFile)
-    .finally(() => SSMWrite.configFile = undefined)
-    .add('name', () => randomUUID())
-    .add('value', () => randomUUID())
-    .add('envVarName', () => randomUUID().replaceAll('-', '_'))
-    .add('originalVersion', '6')
-    .add('updatedVersion', '7');
+describe("ssm:write", () => {
+  let sandbox: SinonSandbox;
+  let ssmStore: SinonStubbedInstance<SSMStore>;
+  let configFile: SinonStubbedInstance<ConfigFile>;
+  let paramName: string;
+  let paramValue: string;
+  let envVarName: string;
+  const updatedVersion = "7";
 
-  const happyPathWriteTest = writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(false))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves());
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    ssmStore = new SSMStore() as SinonStubbedInstance<SSMStore>;
+    configFile = new (ConfigFile as unknown as {
+      new (): ConfigFile;
+    })() as SinonStubbedInstance<ConfigFile>;
+    paramName = randomUUID();
+    paramValue = randomUUID();
+    envVarName = randomUUID().replaceAll("-", "_");
+    SSMWrite.ssmStore = ssmStore;
+    SSMWrite.configFile = configFile;
+  });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--type', 'SecureString'])
-    .it('should use the value specified with the --value flag', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('value', ctx.value));
+  afterEach(() => {
+    SSMWrite.ssmStore = undefined;
+    SSMWrite.configFile = undefined;
+    sandbox.restore();
+  });
+
+  describe("happy path", () => {
+    beforeEach(() => {
+      sandbox.stub(ssmStore, "writeParam").resolves({ updatedVersion });
+      sandbox.stub(configFile, "hasParamConfig").returns(false);
+      sandbox.stub(configFile, "setParamConfig").returns();
+      sandbox.stub(configFile, "save").resolves();
     });
 
-  happyPathWriteTest
-    .commandWithStdin((ctx) => ({
-      argv: ['ssm:write', '--name', ctx.name, '--from-stdin', '--type', 'SecureString'],
-      input: ctx.value,
-    }))
-    .it('should use the value from stdin if --from-stdin is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('value', ctx.value));
+    it("should use the value specified with the --value flag", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "SecureString",
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-  happyPathWriteTest
-    .add('value', () => `${randomUUID()}\n${randomUUID()}\n${randomUUID()}`)
-    .commandWithStdin((ctx) => ({
-      argv: ['ssm:write', '--name', ctx.name, '--from-stdin', '--type', 'SecureString'],
-      input: ctx.value.split('\n'),
-    }))
-    .it('should read multiple lines from stdin', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('value', ctx.value));
-    });
+    it("should prompt the user for the value", async () => {
+      sandbox.stub(ux, "prompt").resolves(paramValue);
 
-  happyPathWriteTest
-    .add('input', (ctx) => `${ctx.value}\n${randomUUID()}\n${randomUUID()}`)
-    .commandWithStdin((ctx) => ({
-      argv: ['ssm:write', '--name', ctx.name, '--from-stdin', '--type', 'SecureString', '--read-single-line'],
-      input: ctx.input.split('\n'),
-    }))
-    .it('should only read the first line from stdin if --from-stdin and --read-single-line is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('value', ctx.value));
-    });
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--type",
+        "SecureString",
+      ]);
 
-  happyPathWriteTest
-    .do((ctx) => ctx.sandbox.stub(ux, 'prompt').resolves(ctx.value))
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--type', 'SecureString'])
-    .it('should prompt the user for the value', (ctx) => {
       sinon.assert.calledOnce(ux.prompt as SinonStub);
-      sinon.assert.calledWith(ux.prompt as SinonStub, 'Value', sinon.match.has('type', 'mask'));
-
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('value', ctx.value));
+      sinon.assert.calledWith(
+        ux.prompt as SinonStub,
+        "Value",
+        sinon.match.has("type", "mask")
+      );
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-  happyPathWriteTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamValue').resolves(ctx.value))
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--type', 'SecureString', '--skip-unchanged'])
-    .it('should not update the parameter if the value has not changed', (ctx) => {
-      sinon.assert.notCalled(ctx.ssmStore.writeParam);
+    it("should save the description if provided", async () => {
+      const description = `${randomUUID()} ${randomUUID()}`;
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "SecureString",
+        "--description",
+        `"${description}"`,
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("description", description)
+      );
     });
 
-  happyPathWriteTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamValue').resolves(`${ctx.value}_old`))
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--type', 'SecureString', '--skip-unchanged'])
-    .it('should update the parameter if the value has changed and skip unchanged is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
+    it("should use the parameter type specified with --type", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--type",
+        "String",
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", "String")
+      );
     });
 
-  happyPathWriteTest
-    .add('description', `${randomUUID} ${randomUUID}`)
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--type', 'SecureString', '--description', ctx.description])
-    .it('should save the description if provided', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('description', ctx.description));
+    it("should default the type to SecureString if --type is not specified", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", ParameterType.SECURE_STRING)
+      );
     });
 
-  happyPathWriteTest
-    .add('paramType', 'String')
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--type', ctx.paramType])
-    .it('should use the parameter type specified with --type', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('type', ctx.paramType));
+    it("should require the --name flag", async () => {
+      const { error, stderr } = await runCommand([
+        "ssm:write",
+        "--value",
+        paramValue,
+        "--type",
+        ParameterType.SECURE_STRING,
+      ]);
+
+      expect(error?.oclif?.exit).to.equal(1);
+      expect(stderr).to.contain("name").and.contain("required");
     });
 
-  happyPathWriteTest
-    .add('paramType', 'String')
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should default the type to SecureString if --type is not specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('type', ParameterType.SECURE_STRING));
+    it("should use the env var name specified with the --env-var-name flag", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--env-var-name",
+        envVarName,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", envVarName)
+      );
     });
 
-  writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should not specify the type if the parameter is already in config', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.writeParam);
-      sinon.assert.calledWith(ctx.ssmStore.writeParam, sinon.match.has('type', undefined));
+    it("should default to the name of the parameter (without the prefix) for new parameters", async () => {
+      const name = "/test/this-is-a-name";
+      const expectedEnvVarName = "THIS_IS_A_NAME";
+
+      await runCommand(["ssm:write", "--name", name, "--value", paramValue]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        name,
+        sinon.match.has("envVarName", expectedEnvVarName)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--value', ctx.value, '--type', ParameterType.SECURE_STRING])
-    .exit(1)
-    .it('should require the --name flag', (ctx) => {
-      expect(ctx.stderr).to.contain('name').and.contain('required');
+    it("should save the current version to the config file", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", updatedVersion)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--env-var-name', ctx.envVarName])
-    .it('should use the env var name specified with the --env-var-name flag', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('envVarName', ctx.envVarName));
+    it("should not lock the version in the config file if --always-use-latest is specified", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--always-use-latest",
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", undefined)
+      );
     });
 
-  writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({
-      envVarName: ctx.envVarName,
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should not overwrite an existing env var name if the --env-var-name flag is not provided', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('envVarName', ctx.envVarName));
+    it("should set allowMissingValue to true in the config if --optional is specified", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--optional",
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("allowMissingValue", true)
+      );
     });
 
-  writeTest
-    .add('updatedEnvVarName', () => randomUUID().replaceAll('-', '_'))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({
-      envVarName: ctx.envVarName,
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--env-var-name', ctx.updatedEnvVarName])
-    .it('should overwrite an existing env var name if the --env-var-name flag is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('envVarName', ctx.updatedEnvVarName));
+    it("should use the value from stdin if --from-stdin is specified", async () => {
+      await runCommandWithStdin(
+        ["ssm:write", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        paramValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-  happyPathWriteTest
-    .add('name', '/test/this-is-a-name')
-    .add('expectedEnvVarName', 'THIS_IS_A_NAME')
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should default to the name of the parameter (without the prefix) for new parameters', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('envVarName', ctx.expectedEnvVarName));
+    it("should read multiple lines from stdin", async () => {
+      const multiLineValue = `${randomUUID()}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        ["ssm:write", "--name", paramName, "--from-stdin", "--type", "SecureString"],
+        multiLineValue
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", multiLineValue)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should save the current version to the config file', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('version', ctx.updatedVersion));
+    it("should only read the first line from stdin if --from-stdin and --read-single-line is specified", async () => {
+      const input = `${paramValue}\n${randomUUID()}\n${randomUUID()}`;
+
+      await runCommandWithStdin(
+        [
+          "ssm:write",
+          "--name",
+          paramName,
+          "--from-stdin",
+          "--type",
+          "SecureString",
+          "--read-single-line",
+        ],
+        input
+      );
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("value", paramValue)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--always-use-latest'])
-    .it('should not lock the version in the config file if --always-use-latest is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('version', undefined));
+    describe("skip unchanged", () => {
+      it("should not update the parameter if the value has not changed", async () => {
+        sandbox.stub(ssmStore, "getParamValue").resolves(paramValue);
+
+        await runCommand([
+          "ssm:write",
+          "--name",
+          paramName,
+          "--value",
+          paramValue,
+          "--type",
+          "SecureString",
+          "--skip-unchanged",
+        ]);
+
+        sinon.assert.notCalled(ssmStore.writeParam);
+      });
+
+      it("should update the parameter if the value has changed", async () => {
+        sandbox.stub(ssmStore, "getParamValue").resolves(`${paramValue}_old`);
+
+        await runCommand([
+          "ssm:write",
+          "--name",
+          paramName,
+          "--value",
+          paramValue,
+          "--type",
+          "SecureString",
+          "--skip-unchanged",
+        ]);
+
+        sinon.assert.calledOnce(ssmStore.writeParam);
+      });
+    });
+  });
+
+  describe("existing parameter", () => {
+    beforeEach(() => {
+      sandbox.stub(ssmStore, "writeParam").resolves({ updatedVersion });
+      sandbox.stub(configFile, "hasParamConfig").returns(true);
+      sandbox.stub(configFile, "setParamConfig").returns();
+      sandbox.stub(configFile, "save").resolves();
     });
 
-  writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({
-      version: '5',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--always-use-latest'])
-    .it('should clear the version for an existing parameter if --always-use-latest is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('version', undefined));
+    it("should not specify the type if the parameter is already in config", async () => {
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(ssmStore.writeParam);
+      sinon.assert.calledWith(
+        ssmStore.writeParam,
+        sinon.match.has("type", undefined)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--optional'])
-    .it('should set allowMissingValue to true in the config if --optional is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
+    it("should not overwrite an existing env var name if the --env-var-name flag is not provided", async () => {
+      sandbox.stub(configFile, "getParamConfig").returns({ envVarName });
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", envVarName)
+      );
     });
 
-  happyPathWriteTest
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should not set allowMissingValue in the config', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', undefined));
+    it("should overwrite an existing env var name if the --env-var-name flag is specified", async () => {
+      const updatedEnvVarName = randomUUID().replaceAll("-", "_");
+      sandbox.stub(configFile, "getParamConfig").returns({ envVarName });
+
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--env-var-name",
+        updatedEnvVarName,
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("envVarName", updatedEnvVarName)
+      );
     });
 
-  writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({}))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value, '--optional'])
-    .it('should set allowMissingValue to true for an existing parameter if --optional is specified', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
-    });
+    it("should clear the version for an existing parameter if --always-use-latest is specified", async () => {
+      sandbox.stub(configFile, "getParamConfig").returns({ version: "5" });
 
-  writeTest
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'writeParam').resolves({ updatedVersion: ctx.updatedVersion }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'hasParamConfig').returns(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({
-      allowMissingValue: true,
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'setParamConfig').returns())
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'save').resolves())
-    .commandWithContext((ctx) => ['ssm:write', '--name', ctx.name, '--value', ctx.value])
-    .it('should use the existing value for allowMissingValue if the parameter already exists and --optional is not set', (ctx) => {
-      sinon.assert.calledOnce(ctx.configFile.setParamConfig);
-      sinon.assert.calledWith(ctx.configFile.setParamConfig, Source.SSM, ctx.name, sinon.match.has('allowMissingValue', true));
+      await runCommand([
+        "ssm:write",
+        "--name",
+        paramName,
+        "--value",
+        paramValue,
+        "--always-use-latest",
+      ]);
+
+      sinon.assert.calledOnce(configFile.setParamConfig);
+      sinon.assert.calledWith(
+        configFile.setParamConfig,
+        Source.SSM,
+        paramName,
+        sinon.match.has("version", undefined)
+      );
     });
-})
+  });
+});

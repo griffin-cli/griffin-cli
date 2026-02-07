@@ -1,180 +1,201 @@
-import { expect } from '@oclif/test';
-import sinon, { SinonStubbedInstance } from 'sinon';
-
-import SSMRead from '../../../src/commands/ssm/read';
-import { SSMStore } from '../../../src/store';
-import { ConfigFile } from '../../../src/config';
+import { expect } from 'chai';
+import sinon, { SinonSandbox, SinonStubbedInstance } from 'sinon';
+import { runCommand } from '@oclif/test';
 import { randomUUID } from 'crypto';
 
-import test from '../../helpers/register';
+import SSMRead from '../../../src/commands/ssm/read.js';
+import { SSMStore } from '../../../src/store/index.js';
+import { ConfigFile } from '../../../src/config/index.js';
 
 describe('ssm:read', () => {
-  const readTest = test
-    .add('untrackedId', () => randomUUID())
-    .add('ssmStore', () => new SSMStore() as SinonStubbedInstance<SSMStore>)
-    .do((ctx) => SSMRead.ssmStore = ctx.ssmStore)
-    .finally(() => SSMRead.ssmStore = undefined);
+  let sandbox: SinonSandbox;
+  let ssmStore: SinonStubbedInstance<SSMStore>;
+  let configFile: SinonStubbedInstance<ConfigFile>;
+  let untrackedId: string;
 
-  const readTestWithConfigFile = readTest
-    .add('idWithVersion', () => randomUUID())
-    .add('version', '777')
-    .add('idWithoutVersion', () => randomUUID())
-    .do((ctx) => SSMRead.configFile = ctx.configFile)
-    .finally(() => SSMRead.configFile = undefined);
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    ssmStore = new SSMStore() as SinonStubbedInstance<SSMStore>;
+    configFile = new (ConfigFile as unknown as { new(): ConfigFile })() as SinonStubbedInstance<ConfigFile>;
+    untrackedId = randomUUID();
+    SSMRead.ssmStore = ssmStore;
+  });
 
+  afterEach(() => {
+    SSMRead.ssmStore = undefined;
+    SSMRead.configFile = undefined;
+    sandbox.restore();
+  });
 
-  readTestWithConfigFile
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves({
-      name: ctx.idWithVersion,
+  describe('with config file', () => {
+    beforeEach(() => {
+      SSMRead.configFile = configFile;
+    });
+
+    it('should use the version in the config file', async () => {
+      const idWithVersion = randomUUID();
+      const version = '777';
+      sandbox.stub(ssmStore, 'getParamRecord').resolves({
+        name: idWithVersion,
+        value: randomUUID(),
+        version,
+        modifiedAt: new Date(),
+        modifiedBy: 'me',
+      });
+      sandbox.stub(ConfigFile, 'doesExist').resolves(true);
+      sandbox.stub(configFile, 'getParamConfig').returns({ version });
+
+      await runCommand(['ssm:read', '--name', idWithVersion]);
+
+      sinon.assert.calledOnce(ssmStore.getParamRecord);
+      sinon.assert.calledWith(ssmStore.getParamRecord, idWithVersion, version);
+    });
+
+    it('should print an error and return an error code if the config file does not exist', async () => {
+      sandbox.stub(ConfigFile, 'doesExist').resolves(false);
+
+      const { error, stderr } = await runCommand(['ssm:read', '--name', randomUUID()]);
+
+      expect(error?.oclif?.exit).to.equal(1);
+      expect(stderr).to.contain('Config file could not be found.');
+    });
+
+    it('should print an error and return an error code if the parameter is not tracked in the config file', async () => {
+      sandbox.stub(ConfigFile, 'doesExist').resolves(true);
+      sandbox.stub(configFile, 'getParamConfig').returns(undefined);
+
+      const { error, stderr } = await runCommand(['ssm:read', '--name', untrackedId]);
+
+      expect(error?.oclif?.exit).to.equal(1);
+      expect(stderr).to.contain('Parameter config not found');
+    });
+
+    it('should use the latest version if the parameter is tracked, but is not locked to a specific version', async () => {
+      const idWithoutVersion = randomUUID();
+      const latestVersion = '7777';
+      sandbox.stub(ConfigFile, 'doesExist').resolves(true);
+      sandbox.stub(configFile, 'getParamConfig').returns({});
+      sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+      sandbox.stub(ssmStore, 'getParamRecord').resolves({
+        name: idWithoutVersion,
+        value: randomUUID(),
+        version: latestVersion,
+        modifiedAt: new Date(),
+        modifiedBy: 'me',
+      });
+
+      await runCommand(['ssm:read', '--name', idWithoutVersion]);
+
+      sinon.assert.calledOnce(ssmStore.getParamRecord);
+      sinon.assert.calledWith(ssmStore.getParamRecord, idWithoutVersion, latestVersion);
+    });
+  });
+
+  it('should use the latest version', async () => {
+    const latestVersion = '8888';
+    sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+    sandbox.stub(ssmStore, 'getParamRecord').resolves({
+      name: untrackedId,
       value: randomUUID(),
-      version: ctx.version,
+      version: latestVersion,
       modifiedAt: new Date(),
       modifiedBy: 'me',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ConfigFile, 'doesExist').resolves(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({
-      version: ctx.version,
-    }))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.idWithVersion])
-    .it('should use the version in the config file', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.getParamRecord);
-      sinon.assert.calledWith(ctx.ssmStore.getParamRecord, ctx.idWithVersion, ctx.version);
     });
 
-  readTestWithConfigFile
-    .do((ctx) => ctx.sandbox.stub(ConfigFile, 'doesExist').resolves(false))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.idWithoutVersion])
-    .exit(1)
-    .it('should print an error and return an error code if the config file does not exist', (ctx) => {
-      expect(ctx.stderr).to.contain('Config file could not be found.');
-    });
+    await runCommand(['ssm:read', '--name', untrackedId, '--latest']);
 
-  readTestWithConfigFile
-    .do((ctx) => ctx.sandbox.stub(ConfigFile, 'doesExist').resolves(true))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId])
-    .exit(1)
-    .it('should print an error and return an error code if the parameter is not tracked in the config file', (ctx) => {
-      expect(ctx.stderr).to.contain('Parameter config not found');
-    });
+    sinon.assert.calledOnce(ssmStore.getCurrentVersion);
+    sinon.assert.calledWith(ssmStore.getParamRecord, untrackedId, latestVersion);
+  });
 
-  readTestWithConfigFile
-    .add('latestVersion', '7777')
-    .do((ctx) => ctx.sandbox.stub(ConfigFile, 'doesExist').resolves(true))
-    .do((ctx) => ctx.sandbox.stub(ctx.configFile, 'getParamConfig').returns({}))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves({
-      name: ctx.idWithoutVersion,
-      value: randomUUID(),
-      version: ctx.latestVersion,
-      modifiedAt: new Date(),
-      modifiedBy: 'me',
-    }))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.idWithoutVersion])
-    .it('should use the latest version if the parameter is tracked, but is not locked to a specific version', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.getParamRecord);
-      sinon.assert.calledWith(ctx.ssmStore.getParamRecord, ctx.idWithoutVersion, ctx.latestVersion);
-    });
+  it('should print an error and return an error code if latest and version flags are specified together', async () => {
+    const { error, stderr } = await runCommand(['ssm:read', '--name', 'unknown', '--version', '5', '--latest']);
 
-  readTest
-    .add('latestVersion', '8888')
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves({
-      name: ctx.untrackedId,
-      value: randomUUID(),
-      version: ctx.latestVersion,
-      modifiedAt: new Date(),
-      modifiedBy: 'me',
-    }))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId, '--latest'])
-    .it('should use the latest version', (ctx) => {
-      sinon.assert.calledOnce(ctx.ssmStore.getCurrentVersion);
-      sinon.assert.calledWith(ctx.ssmStore.getParamRecord, ctx.untrackedId, ctx.latestVersion);
-    });
+    expect(error?.oclif?.exit).to.equal(1);
+    expect(stderr).to.contain('--latest').and.contain('--version');
+  });
 
-  readTest
-    .command(['ssm:read', '--name', 'unknown', '--version', '5', '--latest'])
-    .exit(1)
-    .it('should print an error and return an error code if latest and version flags are specified together', (ctx) => {
-      expect(ctx.stderr).to.contain('--latest').and.contain('--version');
-    });
+  it('should require the name flag', async () => {
+    const { error, stderr } = await runCommand(['ssm:read']);
 
-  readTest
-    .command('ssm:read')
-    .exit(1)
-    .it('should require the name flag', (ctx) => {
-      expect(ctx.stderr).to.contain('Missing required flag name');
-    });
+    expect(error?.oclif?.exit).to.equal(1);
+    expect(stderr).to.contain('Missing required flag name');
+  });
 
-  readTest
-    .add('latestVersion', '8888')
-    .add('paramRecord', (ctx) => ({
-      name: ctx.untrackedId,
+  it('should print the result in a table without the description', async () => {
+    const latestVersion = '8888';
+    const paramRecord = {
+      name: untrackedId,
       description: 'A long description.',
       value: randomUUID(),
-      version: ctx.latestVersion,
+      version: latestVersion,
       modifiedAt: new Date(),
       modifiedBy: 'me',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves(ctx.paramRecord))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId, '--latest', '--no-truncate'])
-    .it('should print the result in a table without the description', (ctx) => {
-      expect(ctx.stdout)
-        .to.contain(ctx.untrackedId)
-        .and.to.contain(ctx.paramRecord.value)
-        .and.to.contain(ctx.paramRecord.version)
-        .and.to.contain(ctx.paramRecord.modifiedAt.toISOString())
-        .and.to.contain(ctx.paramRecord.modifiedBy)
-        .and.not.to.contain(ctx.paramRecord.description);
-    });
+    };
+    sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+    sandbox.stub(ssmStore, 'getParamRecord').resolves(paramRecord);
 
-  readTest
-    .add('latestVersion', '8888')
-    .add('paramRecord', (ctx) => ({
-      name: ctx.untrackedId,
+    const { stdout } = await runCommand(['ssm:read', '--name', untrackedId, '--latest', '--no-truncate']);
+
+    expect(stdout)
+      .to.contain(untrackedId)
+      .and.to.contain(paramRecord.value)
+      .and.to.contain(paramRecord.version)
+      .and.to.contain(paramRecord.modifiedAt.toISOString())
+      .and.to.contain(paramRecord.modifiedBy)
+      .and.not.to.contain(paramRecord.description);
+  });
+
+  it('should include the description if the extended flag is specified', async () => {
+    const latestVersion = '8888';
+    const paramRecord = {
+      name: untrackedId,
       description: 'A long description.',
       value: randomUUID(),
-      version: ctx.latestVersion,
+      version: latestVersion,
       modifiedAt: new Date(),
       modifiedBy: 'me',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves(ctx.paramRecord))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId, '--latest', '--no-truncate', '-x'])
-    .it('should include the description if the extended flag is specified', (ctx) => {
-      expect(ctx.stdout).to.contain(ctx.paramRecord.description);
-    });
+    };
+    sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+    sandbox.stub(ssmStore, 'getParamRecord').resolves(paramRecord);
 
-  readTest
-    .add('latestVersion', '8888')
-    .add('paramRecord', (ctx) => ({
-      name: ctx.untrackedId,
+    const { stdout } = await runCommand(['ssm:read', '--name', untrackedId, '--latest', '--no-truncate', '-x']);
+
+    expect(stdout).to.contain(paramRecord.description);
+  });
+
+  it('should only print the value if the quiet flag is specified', async () => {
+    const latestVersion = '8888';
+    const paramRecord = {
+      name: untrackedId,
       value: randomUUID(),
-      version: ctx.latestVersion,
+      version: latestVersion,
       modifiedAt: new Date(),
       modifiedBy: 'me',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves(ctx.paramRecord))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId, '--latest', '--quiet'])
-    .it('should only print the version if the quiet flag is specified', (ctx) => {
-      expect(ctx.stdout).to.equal(`${ctx.paramRecord.value}\n`);
-    });
+    };
+    sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+    sandbox.stub(ssmStore, 'getParamRecord').resolves(paramRecord);
 
-  readTest
-    .add('latestVersion', '8888')
-    .add('paramRecord', (ctx) => ({
-      name: ctx.untrackedId,
+    const { stdout } = await runCommand(['ssm:read', '--name', untrackedId, '--latest', '--quiet']);
+
+    expect(stdout).to.equal(`${paramRecord.value}\n`);
+  });
+
+  it('should print the result in JSON if the output format is specified as JSON', async () => {
+    const latestVersion = '8888';
+    const paramRecord = {
+      name: untrackedId,
       description: 'A long description.',
       value: randomUUID(),
-      version: ctx.latestVersion,
+      version: latestVersion,
       modifiedAt: new Date(),
       modifiedBy: 'me',
-    }))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getCurrentVersion').resolves(ctx.latestVersion))
-    .do((ctx) => ctx.sandbox.stub(ctx.ssmStore, 'getParamRecord').resolves(ctx.paramRecord))
-    .commandWithContext((ctx) => ['ssm:read', '--name', ctx.untrackedId, '--latest', '--output', 'json', '-x'])
-    .it('should print the result in JSON if the output format is specified as JSON', (ctx) => {
-      expect(ctx.stdout).to.equal(`${JSON.stringify([ctx.paramRecord], undefined, 2)}\n`);
-    });
-})
+    };
+    sandbox.stub(ssmStore, 'getCurrentVersion').resolves(latestVersion);
+    sandbox.stub(ssmStore, 'getParamRecord').resolves(paramRecord);
+
+    const { stdout } = await runCommand(['ssm:read', '--name', untrackedId, '--latest', '--output', 'json', '-x']);
+
+    expect(stdout).to.equal(`${JSON.stringify([paramRecord], undefined, 2)}\n`);
+  });
+});

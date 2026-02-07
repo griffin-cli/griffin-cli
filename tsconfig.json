@@ -2,11 +2,12 @@
   "compilerOptions": {
     "declaration": true,
     "importHelpers": true,
-    "module": "commonjs",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
-    "target": "es2021",
+    "target": "ES2022",
     "esModuleInterop": true,
     "composite": true
   },
