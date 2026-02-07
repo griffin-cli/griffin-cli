@@ -17,9 +17,10 @@ concurrency:
 
 jobs:
   npm-publish:
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/_helper-npm-publish.yml
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   release-artifacts:
     uses: ./.github/workflows/_helper-release-artifacts.yml
